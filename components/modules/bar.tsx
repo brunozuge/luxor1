@@ -32,7 +32,8 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Wine, TrendingUp, Package, DollarSign, ShoppingCart } from "lucide-react"
+import { Plus, Wine, TrendingUp, Package, DollarSign, ShoppingCart, Trophy } from "lucide-react"
+import { BarRanking } from "./bar-ranking"
 
 export function BarModule() {
   const { products, barSales, pessoas, colaboradores, addProduct, addBarSale } = useEventData()
@@ -73,12 +74,6 @@ export function BarModule() {
     return acc
   }, {})
   const peakHour = Object.entries(salesByHour).sort(([, a], [, b]) => b - a)[0]
-
-  // Spending by person
-  const spendingByPerson = barSales.reduce<Record<string, number>>((acc, s) => {
-    acc[s.pessoaId] = (acc[s.pessoaId] || 0) + s.valorTotal
-    return acc
-  }, {})
 
   function handleAddProduct(e: React.FormEvent) {
     e.preventDefault()
@@ -405,38 +400,18 @@ export function BarModule() {
           </Card>
         </TabsContent>
         <TabsContent value="ranking">
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-base">Ranking de Gastos por Pessoa</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-3">
-                {Object.entries(spendingByPerson)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([pessoaId, total], i) => {
-                    const pessoa = pessoas.find((p) => p.id === pessoaId)
-                    const maxSpend = Math.max(...Object.values(spendingByPerson))
-                    return (
-                      <div key={pessoaId} className="flex items-center gap-3">
-                        <span className="w-6 text-center text-sm font-bold text-muted-foreground">
-                          {i + 1}
-                        </span>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{pessoa?.nome || "-"}</span>
-                            <span className="font-bold">R$ {total.toLocaleString("pt-BR")}</span>
-                          </div>
-                          <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                            <div
-                              className="h-full rounded-full bg-primary"
-                              style={{ width: `${(total / maxSpend) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+          <Card className="bg-card border-border overflow-hidden">
+            <CardHeader className="flex flex-row items-center gap-3 border-b border-border pb-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10">
+                <Trophy className="h-5 w-5 text-accent" />
               </div>
+              <div>
+                <CardTitle className="text-base">Ranking de Gastos</CardTitle>
+                <p className="text-xs text-muted-foreground">Quem mais consome no bar</p>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <BarRanking />
             </CardContent>
           </Card>
         </TabsContent>
