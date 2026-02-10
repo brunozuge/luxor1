@@ -49,6 +49,7 @@ export function BarModule() {
   const [saleForm, setSaleForm] = useState({
     productId: "",
     pessoaId: "",
+    vendedor: "",
     quantidade: "1",
   })
 
@@ -94,13 +95,14 @@ export function BarModule() {
 
   function handleAddSale(e: React.FormEvent) {
     e.preventDefault()
-    if (!saleForm.productId || !saleForm.pessoaId) return
+    if (!saleForm.productId || !saleForm.pessoaId || !saleForm.vendedor) return
     addBarSale({
       productId: saleForm.productId,
       pessoaId: saleForm.pessoaId,
+      vendedor: saleForm.vendedor,
       quantidade: Number(saleForm.quantidade) || 1,
     })
-    setSaleForm({ productId: "", pessoaId: "", quantidade: "1" })
+    setSaleForm({ productId: "", pessoaId: "", vendedor: "", quantidade: "1" })
     setSaleDialogOpen(false)
   }
 
@@ -212,6 +214,14 @@ export function BarModule() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label>Funcionario (vendedor) *</Label>
+                  <Input
+                    value={saleForm.vendedor}
+                    onChange={(e) => setSaleForm({ ...saleForm, vendedor: e.target.value })}
+                    placeholder="Nome do funcionario"
+                  />
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>Quantidade</Label>
@@ -348,6 +358,7 @@ export function BarModule() {
                     <TableHead>Hora</TableHead>
                     <TableHead>Produto</TableHead>
                     <TableHead>Cliente</TableHead>
+                    <TableHead>Vendedor</TableHead>
                     <TableHead>Qtd</TableHead>
                     <TableHead>Total</TableHead>
                   </TableRow>
@@ -361,6 +372,7 @@ export function BarModule() {
                         <TableCell className="font-mono text-muted-foreground">{s.hora}</TableCell>
                         <TableCell className="font-medium">{prod?.nome || "-"}</TableCell>
                         <TableCell>{pessoa?.nome || "-"}</TableCell>
+                        <TableCell className="text-accent">{s.vendedor}</TableCell>
                         <TableCell>{s.quantidade}</TableCell>
                         <TableCell className="font-semibold">
                           R$ {s.valorTotal.toLocaleString("pt-BR")}
@@ -370,7 +382,7 @@ export function BarModule() {
                   })}
                   {barSales.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         Nenhuma venda registrada
                       </TableCell>
                     </TableRow>

@@ -45,6 +45,7 @@ export interface BarSale {
   id: string
   productId: string
   pessoaId: string
+  vendedor: string
   quantidade: number
   valorTotal: number
   hora: string
@@ -77,6 +78,7 @@ interface EventContextType extends EventData {
   updateProduct: (id: string, p: Partial<Product>) => void
   removeProduct: (id: string) => void
   addBarSale: (s: Omit<BarSale, "id" | "hora" | "valorTotal">) => void
+
   addCamaroteTable: (t: Omit<CamaroteTable, "id" | "pessoaIds" | "garrafas">) => void
   updateCamaroteTable: (id: string, t: Partial<CamaroteTable>) => void
   addGarrafaToCamarote: (tableId: string, garrafa: string) => void
@@ -125,13 +127,13 @@ function createDemoData(): EventData {
   ]
 
   const barSales: BarSale[] = [
-    { id: "s1", productId: "prod1", pessoaId: "p1", quantidade: 3, valorTotal: 30, hora: "23:00" },
-    { id: "s2", productId: "prod4", pessoaId: "p1", quantidade: 1, valorTotal: 18, hora: "23:15" },
-    { id: "s3", productId: "prod2", pessoaId: "p2", quantidade: 1, valorTotal: 120, hora: "23:30" },
-    { id: "s4", productId: "prod1", pessoaId: "p4", quantidade: 2, valorTotal: 20, hora: "23:45" },
-    { id: "s5", productId: "prod3", pessoaId: "p3", quantidade: 2, valorTotal: 10, hora: "00:00" },
-    { id: "s6", productId: "prod1", pessoaId: "p2", quantidade: 4, valorTotal: 40, hora: "00:15" },
-    { id: "s7", productId: "prod5", pessoaId: "p2", quantidade: 1, valorTotal: 250, hora: "00:30" },
+    { id: "s1", productId: "prod1", pessoaId: "p1", vendedor: "Roberto", quantidade: 3, valorTotal: 30, hora: "23:00" },
+    { id: "s2", productId: "prod4", pessoaId: "p1", vendedor: "Carlos", quantidade: 1, valorTotal: 18, hora: "23:15" },
+    { id: "s3", productId: "prod2", pessoaId: "p2", vendedor: "Roberto", quantidade: 1, valorTotal: 120, hora: "23:30" },
+    { id: "s4", productId: "prod1", pessoaId: "p4", vendedor: "Felipe", quantidade: 2, valorTotal: 20, hora: "23:45" },
+    { id: "s5", productId: "prod3", pessoaId: "p3", vendedor: "Carlos", quantidade: 2, valorTotal: 10, hora: "00:00" },
+    { id: "s6", productId: "prod1", pessoaId: "p2", vendedor: "Felipe", quantidade: 4, valorTotal: 40, hora: "00:15" },
+    { id: "s7", productId: "prod5", pessoaId: "p2", vendedor: "Roberto", quantidade: 1, valorTotal: 250, hora: "00:30" },
   ]
 
   const camaroteTables: CamaroteTable[] = [
@@ -216,7 +218,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         products: prev.products.map(p =>
           p.id === s.productId ? { ...p, estoqueAtual: p.estoqueAtual - s.quantidade } : p
         ),
-        barSales: [...prev.barSales, { ...s, id: generateId(), hora, valorTotal: product.precoVenda * s.quantidade }]
+        barSales: [...prev.barSales, { ...s, id: generateId(), hora, valorTotal: product.precoVenda * s.quantidade, vendedor: s.vendedor }]
       }
     })
   }, [])
