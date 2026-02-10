@@ -34,6 +34,7 @@ export function CamaroteModule() {
     addGarrafaToCamarote,
     addPessoaToCamarote,
     removePessoaFromCamarote,
+    colaboradores,
   } = useEventData()
 
   const [tableDialogOpen, setTableDialogOpen] = useState(false)
@@ -119,11 +120,23 @@ export function CamaroteModule() {
               </div>
               <div className="flex flex-col gap-2">
                 <Label>Garcom Responsavel</Label>
-                <Input
+                <Select
                   value={tableForm.garcom}
-                  onChange={(e) => setTableForm({ ...tableForm, garcom: e.target.value })}
-                  placeholder="Nome do garcom"
-                />
+                  onValueChange={(v) => setTableForm({ ...tableForm, garcom: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o garcom" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {colaboradores
+                      .filter((c) => c.ativo)
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.nome}>
+                          {c.nome} ({c.cargo})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
               <Button type="submit" className="w-full">Adicionar</Button>
             </form>

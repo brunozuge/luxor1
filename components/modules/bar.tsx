@@ -35,7 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus, Wine, TrendingUp, Package, DollarSign, ShoppingCart } from "lucide-react"
 
 export function BarModule() {
-  const { products, barSales, pessoas, addProduct, addBarSale } = useEventData()
+  const { products, barSales, pessoas, colaboradores, addProduct, addBarSale } = useEventData()
   const [productDialogOpen, setProductDialogOpen] = useState(false)
   const [saleDialogOpen, setSaleDialogOpen] = useState(false)
 
@@ -217,11 +217,23 @@ export function BarModule() {
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>Funcionario (vendedor) *</Label>
-                  <Input
+                  <Select
                     value={saleForm.vendedor}
-                    onChange={(e) => setSaleForm({ ...saleForm, vendedor: e.target.value })}
-                    placeholder="Nome do funcionario"
-                  />
+                    onValueChange={(v) => setSaleForm({ ...saleForm, vendedor: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o funcionario" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {colaboradores
+                        .filter((c) => c.ativo)
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.nome}>
+                            {c.nome} ({c.cargo})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>Quantidade</Label>

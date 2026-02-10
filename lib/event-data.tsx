@@ -51,6 +51,16 @@ export interface BarSale {
   hora: string
 }
 
+export type CargoColaborador = "barman" | "garcom" | "porteiro" | "promoter" | "seguranca" | "caixa" | "outro"
+
+export interface Colaborador {
+  id: string
+  nome: string
+  cargo: CargoColaborador
+  telefone: string
+  ativo: boolean
+}
+
 export interface CamaroteTable {
   id: string
   nome: string
@@ -65,6 +75,7 @@ export interface EventData {
   products: Product[]
   barSales: BarSale[]
   camaroteTables: CamaroteTable[]
+  colaboradores: Colaborador[]
   lotacaoMaxima: number
 }
 
@@ -79,6 +90,9 @@ interface EventContextType extends EventData {
   removeProduct: (id: string) => void
   addBarSale: (s: Omit<BarSale, "id" | "hora" | "valorTotal">) => void
 
+  addColaborador: (c: Omit<Colaborador, "id">) => void
+  updateColaborador: (id: string, c: Partial<Colaborador>) => void
+  removeColaborador: (id: string) => void
   addCamaroteTable: (t: Omit<CamaroteTable, "id" | "pessoaIds" | "garrafas">) => void
   updateCamaroteTable: (id: string, t: Partial<CamaroteTable>) => void
   addGarrafaToCamarote: (tableId: string, garrafa: string) => void
@@ -136,12 +150,22 @@ function createDemoData(): EventData {
     { id: "s7", productId: "prod5", pessoaId: "p2", vendedor: "Roberto", quantidade: 1, valorTotal: 250, hora: "00:30" },
   ]
 
+  const colaboradores: Colaborador[] = [
+    { id: "col1", nome: "Roberto", cargo: "barman", telefone: "(11) 99999-0001", ativo: true },
+    { id: "col2", nome: "Carlos", cargo: "barman", telefone: "(11) 99999-0002", ativo: true },
+    { id: "col3", nome: "Felipe", cargo: "garcom", telefone: "(11) 99999-0003", ativo: true },
+    { id: "col4", nome: "Marcos", cargo: "porteiro", telefone: "(11) 99999-0004", ativo: true },
+    { id: "col5", nome: "Julia", cargo: "caixa", telefone: "(11) 99999-0005", ativo: true },
+    { id: "col6", nome: "Amanda", cargo: "promoter", telefone: "(11) 99999-0006", ativo: true },
+    { id: "col7", nome: "Rafael", cargo: "seguranca", telefone: "(11) 99999-0007", ativo: false },
+  ]
+
   const camaroteTables: CamaroteTable[] = [
     { id: "cam1", nome: "Mesa 1", garcom: "Roberto", garrafas: ["Vodka Absolut", "Whisky Jack"], pessoaIds: ["p2"] },
     { id: "cam2", nome: "Mesa 2", garcom: "Carlos", garrafas: ["Vodka Absolut"], pessoaIds: ["p3"] },
   ]
 
-  return { pessoas, tickets, products, barSales, camaroteTables, lotacaoMaxima: 500 }
+  return { pessoas, tickets, products, barSales, camaroteTables, colaboradores, lotacaoMaxima: 500 }
 }
 
 export function EventDataProvider({ children }: { children: React.ReactNode }) {
@@ -223,6 +247,27 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
+  const addColaborador = useCallback((c: Omit<Colaborador, "id">) => {
+    setData(prev => ({
+      ...prev,
+      colaboradores: [...prev.colaboradores, { ...c, id: generateId() }]
+    }))
+  }, [])
+
+  const updateColaborador = useCallback((id: string, c: Partial<Colaborador>) => {
+    setData(prev => ({
+      ...prev,
+      colaboradores: prev.colaboradores.map(x => x.id === id ? { ...x, ...c } : x)
+    }))
+  }, [])
+
+  const removeColaborador = useCallback((id: string) => {
+    setData(prev => ({
+      ...prev,
+      colaboradores: prev.colaboradores.filter(x => x.id !== id)
+    }))
+  }, [])
+
   const addCamaroteTable = useCallback((t: Omit<CamaroteTable, "id" | "pessoaIds" | "garrafas">) => {
     setData(prev => ({
       ...prev,
@@ -282,6 +327,9 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       updateProduct,
       removeProduct,
       addBarSale,
+      addColaborador,
+      updateColaborador,
+      removeColaborador,
       addCamaroteTable,
       updateCamaroteTable,
       addGarrafaToCamarote,

@@ -11,6 +11,7 @@ import { IngressosModule } from "@/components/modules/ingressos"
 import { PortariaModule } from "@/components/modules/portaria"
 import { BarModule } from "@/components/modules/bar"
 import { CamaroteModule } from "@/components/modules/camarote"
+import { ColaboradoresModule } from "@/components/modules/colaboradores"
 
 const sectionTitles: Record<string, string> = {
   dashboard: "Dashboard",
@@ -19,6 +20,7 @@ const sectionTitles: Record<string, string> = {
   portaria: "Portaria",
   bar: "Bar",
   camarote: "Camarote / VIP",
+  colaboradores: "Colaboradores",
 }
 
 function AppContent() {
@@ -40,6 +42,7 @@ function AppContent() {
           {activeSection === "portaria" && <PortariaModule />}
           {activeSection === "bar" && <BarModule />}
           {activeSection === "camarote" && <CamaroteModule />}
+          {activeSection === "colaboradores" && <ColaboradoresModule />}
         </div>
       </SidebarInset>
     </SidebarProvider>

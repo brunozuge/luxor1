@@ -7,6 +7,7 @@ import {
   Wine,
   Crown,
   LayoutDashboard,
+  UserCog,
 } from "lucide-react"
 import {
   Sidebar,
@@ -29,6 +30,7 @@ const navItems = [
   { title: "Portaria", icon: DoorOpen, id: "portaria" },
   { title: "Bar", icon: Wine, id: "bar" },
   { title: "Camarote / VIP", icon: Crown, id: "camarote" },
+  { title: "Colaboradores", icon: UserCog, id: "colaboradores" },
 ]
 
 interface AppSidebarProps {
