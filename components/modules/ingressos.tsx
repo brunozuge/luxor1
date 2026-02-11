@@ -121,24 +121,7 @@ export function IngressosModule() {
                   />
                 </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <Label>Pessoa *</Label>
-                <Select
-                  value={form.pessoaId}
-                  onValueChange={(v) => setForm({ ...form, pessoaId: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a pessoa" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pessoas.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="valor">Valor (R$)</Label>
