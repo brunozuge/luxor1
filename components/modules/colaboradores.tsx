@@ -19,6 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Switch } from "@/components/ui/switch"
 import {
   Table,
   TableBody,
@@ -181,17 +182,17 @@ export function ColaboradoresModule() {
                   placeholder="(00) 00000-0000"
                 />
               </div>
-              <div className="flex items-center gap-3">
-                <Label>Status:</Label>
-                <Button
-                  type="button"
-                  variant={form.ativo ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setForm({ ...form, ativo: !form.ativo })}
-                  className={form.ativo ? "" : "bg-transparent"}
-                >
-                  {form.ativo ? "Ativo" : "Inativo"}
-                </Button>
+              <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div className="flex flex-col gap-0.5">
+                  <Label>Colaborador Ativo</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Determina se o colaborador aparece nas listas
+                  </p>
+                </div>
+                <Switch
+                  checked={form.ativo}
+                  onCheckedChange={(v) => setForm({ ...form, ativo: v })}
+                />
               </div>
               <Button type="submit" className="w-full">
                 {editingId ? "Salvar" : "Adicionar"}
@@ -306,11 +307,11 @@ export function ColaboradoresModule() {
                       : "-"}
                   </TableCell>
                   <TableCell>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleAtivo(c.id)}
-                      className="cursor-pointer"
-                    >
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={c.ativo}
+                        onCheckedChange={() => handleToggleAtivo(c.id)}
+                      />
                       <Badge
                         variant="outline"
                         className={
@@ -321,7 +322,7 @@ export function ColaboradoresModule() {
                       >
                         {c.ativo ? "Ativo" : "Inativo"}
                       </Badge>
-                    </button>
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">

@@ -266,6 +266,30 @@ export function CamaroteModule() {
                     )}
                   </div>
                 </div>
+
+                {/* Historico de Consumo */}
+                <div className="mt-2 border-t border-border pt-4">
+                  <h4 className="text-sm font-semibold text-muted-foreground mb-3">Consumo Recente</h4>
+                  <div className="flex flex-col gap-2 max-h-[150px] overflow-y-auto pr-2">
+                    {table.pessoaIds.flatMap(pid =>
+                      barSales.filter(s => s.pessoaId === pid)
+                    ).sort((a, b) => b.hora.localeCompare(a.hora)).slice(0, 5).map(sale => {
+                      const product = pessoas.find(p => p.id === sale.pessoaId)
+                      return (
+                        <div key={sale.id} className="flex items-center justify-between text-xs bg-muted/30 p-2 rounded">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{sale.quantidade}x {sale.id.startsWith("temp") ? "Venda..." : "Item"}</span>
+                            <span className="text-[10px] text-muted-foreground">{product?.nome} • {sale.hora}</span>
+                          </div>
+                          <span className="font-bold">R$ {sale.valorTotal.toLocaleString("pt-BR")}</span>
+                        </div>
+                      )
+                    })}
+                    {table.pessoaIds.length === 0 && (
+                      <span className="text-xs text-muted-foreground italic">Mesa vazia</span>
+                    )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )
@@ -289,13 +313,12 @@ export function CamaroteModule() {
                 return (
                   <div key={pessoaId} className="flex items-center gap-3">
                     <span
-                      className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
-                        i === 0
+                      className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${i === 0
                           ? "bg-warning text-warning-foreground"
                           : i === 1
                             ? "bg-muted text-muted-foreground"
                             : "bg-secondary text-secondary-foreground"
-                      }`}
+                        }`}
                     >
                       {i + 1}
                     </span>

@@ -50,16 +50,8 @@ export function IngressosModule() {
     valorPago: "",
     vendedor: "",
     formaPagamento: "pix" as PaymentMethod,
-    pessoaId: "",
   })
-
-  const filtered = tickets.filter((t) => {
-    const pessoa = pessoas.find((p) => p.id === t.pessoaId)
-    return (
-      t.numero.includes(search) ||
-      (pessoa && pessoa.nome.toLowerCase().includes(search.toLowerCase()))
-    )
-  })
+  const filtered = tickets.filter((t) => t.numero.includes(search))
 
   const totalArrecadado = tickets.reduce((sum, t) => sum + t.valorPago, 0)
   const totalEntrou = tickets.filter((t) => t.entrou).length
@@ -67,16 +59,15 @@ export function IngressosModule() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.numero || !form.pessoaId) return
+    if (!form.numero) return
     addTicket({
       numero: form.numero,
       lote: form.lote,
       valorPago: Number(form.valorPago) || 0,
       vendedor: form.vendedor,
       formaPagamento: form.formaPagamento,
-      pessoaId: form.pessoaId,
     })
-    setForm({ numero: "", lote: "", valorPago: "", vendedor: "", formaPagamento: "pix", pessoaId: "" })
+    setForm({ numero: "", lote: "", valorPago: "", vendedor: "", formaPagamento: "pix" })
     setDialogOpen(false)
   }
 
@@ -121,7 +112,7 @@ export function IngressosModule() {
                   />
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="valor">Valor (R$)</Label>
@@ -159,6 +150,7 @@ export function IngressosModule() {
                   </SelectContent>
                 </Select>
               </div>
+
               <Button type="submit" className="w-full">Registrar</Button>
             </form>
           </DialogContent>
@@ -223,7 +215,6 @@ export function IngressosModule() {
               <TableRow className="border-border hover:bg-transparent">
                 <TableHead>Numero</TableHead>
                 <TableHead>Lote</TableHead>
-                <TableHead>Pessoa</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Vendedor</TableHead>
                 <TableHead>Pagamento</TableHead>
@@ -232,12 +223,10 @@ export function IngressosModule() {
             </TableHeader>
             <TableBody>
               {filtered.map((t) => {
-                const pessoa = pessoas.find((p) => p.id === t.pessoaId)
                 return (
                   <TableRow key={t.id} className="border-border">
                     <TableCell className="font-mono font-bold">#{t.numero}</TableCell>
                     <TableCell className="text-muted-foreground">{t.lote}</TableCell>
-                    <TableCell className="font-medium">{pessoa?.nome || "-"}</TableCell>
                     <TableCell>R$ {t.valorPago.toLocaleString("pt-BR")}</TableCell>
                     <TableCell className="text-muted-foreground">{t.vendedor}</TableCell>
                     <TableCell className="text-muted-foreground">{paymentLabels[t.formaPagamento]}</TableCell>

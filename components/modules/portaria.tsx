@@ -44,15 +44,13 @@ export function PortariaModule() {
   const isAtCapacity = percentage >= 100
 
   const foundTicket = tickets.find((t) => t.numero === searchTicket && !t.entrou)
-  const foundPessoa = foundTicket ? pessoas.find((p) => p.id === foundTicket.pessoaId) : null
-  const isMenor = foundPessoa ? calcAge(foundPessoa.dataNascimento) < 18 : false
 
   function handleEntry() {
     if (!foundTicket) return
     marcarEntrada(foundTicket.id, selectedWristband)
     const now = new Date()
     const hora = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
-    setLastEntry({ nome: foundPessoa?.nome || "Desconhecido", hora })
+    setLastEntry({ nome: `Ingresso #${foundTicket.numero}`, hora })
     setSearchTicket("")
   }
 
@@ -95,9 +93,8 @@ export function PortariaModule() {
             <div className="text-4xl font-bold tabular-nums">{pessoasDentro}</div>
             <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-secondary">
               <div
-                className={`h-full rounded-full transition-all ${
-                  isNearCapacity ? "bg-destructive" : "bg-primary"
-                }`}
+                className={`h-full rounded-full transition-all ${isNearCapacity ? "bg-destructive" : "bg-primary"
+                  }`}
                 style={{ width: `${Math.min(percentage, 100)}%` }}
               />
             </div>
@@ -162,26 +159,16 @@ export function PortariaModule() {
             </div>
           )}
 
-          {foundTicket && foundPessoa && (
+          {foundTicket && (
             <div className="rounded-lg border border-border bg-secondary/50 p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-lg font-bold">{foundPessoa.nome}</p>
+                  <p className="text-lg font-bold">Ingresso Identificado</p>
                   <p className="text-sm text-muted-foreground">
-                    Ingresso #{foundTicket.numero} - Lote {foundTicket.lote}
+                    #{foundTicket.numero} - Lote {foundTicket.lote}
                   </p>
                 </div>
-                {isMenor && (
-                  <Badge className="bg-warning text-warning-foreground text-sm px-3 py-1">
-                    MENOR DE IDADE
-                  </Badge>
-                )}
               </div>
-              {foundPessoa.observacao && (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Obs: {foundPessoa.observacao}
-                </p>
-              )}
             </div>
           )}
 
@@ -193,11 +180,10 @@ export function PortariaModule() {
                   key={color}
                   type="button"
                   onClick={() => setSelectedWristband(color)}
-                  className={`rounded-lg border-2 p-4 text-center transition-all ${
-                    selectedWristband === color
+                  className={`rounded-lg border-2 p-4 text-center transition-all ${selectedWristband === color
                       ? "border-primary ring-2 ring-primary/30"
                       : "border-border hover:border-muted-foreground"
-                  }`}
+                    }`}
                 >
                   <div className={`mx-auto mb-2 h-6 w-6 rounded-full ${wristbandStyles[color]}`} />
                   <span className="text-sm font-medium">{wristbandLabels[color]}</span>
@@ -229,15 +215,14 @@ export function PortariaModule() {
               .sort((a, b) => (b.horaEntrada || "").localeCompare(a.horaEntrada || ""))
               .slice(0, 10)
               .map((t) => {
-                const pessoa = pessoas.find((p) => p.id === t.pessoaId)
                 return (
                   <div
                     key={t.id}
                     className="flex items-center justify-between rounded-lg bg-secondary/50 px-4 py-3"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="font-mono text-sm text-muted-foreground">#{t.numero}</span>
-                      <span className="font-medium">{pessoa?.nome || "-"}</span>
+                      <span className="font-mono text-sm font-bold">#{t.numero}</span>
+                      <span className="text-xs text-muted-foreground">Lote {t.lote}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       {t.pulseira && (
