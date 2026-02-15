@@ -63,6 +63,6 @@ EXPOSE 10000
 
 # Comando de inicialização
 CMD php artisan migrate --force && \
-    frankenphp php-server --listen :10000
+    frankenphp run --config /app/Caddyfile
 
 
