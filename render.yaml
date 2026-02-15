@@ -1,13 +1,16 @@
 services:
-  - type: web
+  - type: static
     name: eventpro-frontend
-    env: node
     rootDir: Frontend
     buildCommand: npm ci && npm run build
-    startCommand: npm start
+    staticPublishPath: out
     autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
         sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
