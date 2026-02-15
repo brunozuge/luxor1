@@ -1,38 +1,64 @@
-FROM php:8.4-cli
+FROM dunglas/frankenphp:latest-php8.4-alpine
 
-# Dependências do sistema
-RUN apt-get update && apt-get install -y \
+# Dependências do sistema (Alpine é mais leve e rápido)
+RUN apk add --no-cache \
     git \
     unzip \
-    libpq-dev \
     libzip-dev \
     zip \
-    curl
+    curl \
+    libpq-dev \
+    postgresql-dev \
+    bash
 
 # Extensões PHP necessárias
-RUN docker-php-ext-install pdo pdo_pgsql zip
+RUN docker-php-ext-install pdo pdo_pgsql zip opcache
+
+# Otimização de PHP para Produção
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+
+# Configuração customizada do Opcache (acelera MUITO o Laravel)
+RUN { \
+    echo 'opcache.memory_consumption=128'; \
+    echo 'opcache.interned_strings_buffer=8'; \
+    echo 'opcache.max_accelerated_files=10000'; \
+    echo 'opcache.revalidate_freq=2'; \
+    echo 'opcache.fast_shutdown=1'; \
+    echo 'opcache.enable_cli=1'; \
+    } > $PHP_INI_DIR/conf.d/opcache-recommended.ini
 
 # Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Diretório de trabalho
-WORKDIR /var/www
+WORKDIR /app
 
-# Copia projeto
+# Copia apenas o necessário primeiro para aproveitar cache de camadas do Docker
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader
+
+# Copia o resto do projeto
 COPY . .
 
-# Instala dependências Laravel
+# Finaliza instalação do Composer com otimização
 RUN composer install --no-dev --optimize-autoloader
 
-# Storage link (evita bug chato de upload/imagem)
-RUN php artisan storage:link || true
+# --- CACHE DO LARAVEL (CRÍTICO PARA PERFORMANCE) ---
+# Geramos as chaves de cache para que o Laravel não precise ler arquivos de config/rotas em cada request
+RUN php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache
 
-# Permissões (CRÍTICO no Laravel)
-RUN chmod -R 775 storage bootstrap/cache
+# Permissões corretas (O FrankenPHP roda como root por padrão no Alpine, mas o www-data é mais seguro)
+RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Porta Render
+# Variáveis de ambiente para o FrankenPHP
+ENV SERVER_NAME=:10000
+ENV PORT=10000
+
+# Porta que o Render usa (ele detecta automaticamente se estiver em 10000 ou 8080)
 EXPOSE 10000
 
-# Inicialização
+# Comando de inicialização: roda migrações e sobe o servidor
 CMD php artisan migrate --force && \
-    php artisan serve --host 0.0.0.0 --port 10000
+    frankenphp php-server --listen :10000
+

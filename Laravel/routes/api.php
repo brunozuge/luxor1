@@ -31,3 +31,7 @@ Route::prefix('v1')->group(function () {
     Route::post('mesas-camarote/{id}/garrafas', [MesaCamaroteController::class, 'addGarrafa']);
     Route::apiResource('mesas-camarote', MesaCamaroteController::class);
 });
+
+Route::get('/health', function () {
+    return response()->json(['status' => 'ok', 'time' => now()]);
+});
