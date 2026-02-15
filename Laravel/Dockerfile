@@ -42,11 +42,12 @@ COPY . .
 # Finaliza instalação do Composer com otimização
 RUN composer install --no-dev --optimize-autoloader
 
-# --- CACHE DO LARAVEL (CRÍTICO PARA PERFORMANCE) ---
-# Geramos as chaves de cache para que o Laravel não precise ler arquivos de config/rotas em cada request
-RUN php artisan config:cache && \
-    php artisan route:cache && \
+# --- CACHE DO LARAVEL (OTIMIZAÇÃO) ---
+# Otimizamos rotas e views, mas NÃO as configurações (config:cache) 
+# para que o Laravel consiga ler as variáveis de ambiente do Render/Supabase em tempo real.
+RUN php artisan route:cache && \
     php artisan view:cache
+
 
 # Permissões corretas (O FrankenPHP roda como root por padrão no Alpine, mas o www-data é mais seguro)
 RUN chown -R www-data:www-data storage bootstrap/cache
