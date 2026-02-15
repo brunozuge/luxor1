@@ -1,23 +1,28 @@
-FROM dunglas/frankenphp:php8.4-alpine
+FROM dunglas/frankenphp:php8.4-bookworm
 
-# Dependências do sistema (Alpine é mais leve e rápido)
-RUN apk add --no-cache \
+# Dependências do sistema (Debian é mais compatível com o Render)
+RUN apt-get update && apt-get install -y \
     git \
     unzip \
     libzip-dev \
     zip \
     curl \
     libpq-dev \
-    postgresql-dev \
-    bash
+    libcap2-bin \
+    && rm -rf /var/lib/apt/lists/*
 
 # Extensões PHP necessárias
 RUN docker-php-ext-install pdo pdo_pgsql zip opcache
 
+# --- CORREÇÃO PARA O RENDER (IMPORTANTE) ---
+# Removemos os recursos (capabilities) do binário que causam o erro 'Operation not permitted'
+# Isso é necessário porque o Render não permite certas permissões de baixo nível no Kernel.
+RUN setcap -r /usr/local/bin/frankenphp || true
+
 # Otimização de PHP para Produção
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
-# Configuração customizada do Opcache (acelera MUITO o Laravel)
+# Configuração customizada do Opcache
 RUN { \
     echo 'opcache.memory_consumption=128'; \
     echo 'opcache.interned_strings_buffer=8'; \
@@ -32,7 +37,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# Copia apenas o necessário primeiro para aproveitar cache de camadas do Docker
+# Copia apenas o necessário primeiro
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader
 
@@ -43,23 +48,21 @@ COPY . .
 RUN composer install --no-dev --optimize-autoloader
 
 # --- CACHE DO LARAVEL (OTIMIZAÇÃO) ---
-# Otimizamos rotas e views, mas NÃO as configurações (config:cache) 
-# para que o Laravel consiga ler as variáveis de ambiente do Render/Supabase em tempo real.
 RUN php artisan route:cache && \
     php artisan view:cache
 
-
-# Permissões corretas (O FrankenPHP roda como root por padrão no Alpine, mas o www-data é mais seguro)
+# Permissões
 RUN chown -R www-data:www-data storage bootstrap/cache
 
 # Variáveis de ambiente para o FrankenPHP
 ENV SERVER_NAME=:10000
 ENV PORT=10000
 
-# Porta que o Render usa (ele detecta automaticamente se estiver em 10000 ou 8080)
+# Porta do Render
 EXPOSE 10000
 
-# Comando de inicialização: roda migrações e sobe o servidor
+# Comando de inicialização
 CMD php artisan migrate --force && \
     frankenphp php-server --listen :10000
+
 
