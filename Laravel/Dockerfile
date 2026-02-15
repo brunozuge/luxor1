@@ -1,4 +1,4 @@
-FROM dunglas/frankenphp:latest-php8.4-alpine
+FROM dunglas/frankenphp:php8.4-alpine
 
 # Dependências do sistema (Alpine é mais leve e rápido)
 RUN apk add --no-cache \
