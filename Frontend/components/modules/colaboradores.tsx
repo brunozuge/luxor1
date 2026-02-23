@@ -31,6 +31,8 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Search, UserCog, Trash2, Pencil, Phone } from "lucide-react"
+import { ConfirmDialog } from "@/components/confirm-dialog"
+import { toast } from "sonner"
 
 const cargoLabels: Record<CargoColaborador, string> = {
   barman: "Barman",
@@ -64,6 +66,8 @@ export function ColaboradoresModule() {
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [errors, setErrors] = useState<Record<string, boolean>>({})
   const [form, setForm] = useState({
     nome: "",
     cargo: "barman" as CargoColaborador,
@@ -106,7 +110,27 @@ export function ColaboradoresModule() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.nome) return
+
+    const newErrors = {
+      nome: !form.nome,
+      cargo: !form.cargo,
+      telefone: !form.telefone
+    }
+    setErrors(newErrors)
+
+    if (Object.values(newErrors).some(v => v)) {
+      toast.error("Preencha todos os campos destacados em vermelho.")
+      return
+    }
+
+    // Uniqueness check (Frontend)
+    const alreadyExists = colaboradores.find(c =>
+      c.telefone.replace(/\D/g, "") === form.telefone.replace(/\D/g, "") && c.id !== editingId
+    )
+    if (alreadyExists) {
+      toast.error(`Este telefone já esta em uso por ${alreadyExists.nome}.`)
+      return
+    }
     if (editingId) {
       updateColaborador(editingId, form)
     } else {
@@ -123,6 +147,13 @@ export function ColaboradoresModule() {
     updateColaborador(id, { ativo: !col.ativo })
   }
 
+  function handleDeleteColaborador() {
+    if (confirmDeleteId) {
+      removeColaborador(confirmDeleteId)
+      setConfirmDeleteId(null)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -132,7 +163,14 @@ export function ColaboradoresModule() {
             Gerencie sua equipe de trabalho
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(v) => {
+          setDialogOpen(v)
+          if (!v) {
+            setEditingId(null)
+            setErrors({})
+            setForm({ nome: "", cargo: "outro", telefone: "", ativo: true })
+          }
+        }}>
           <DialogTrigger asChild>
             <Button onClick={openNewDialog}>
               <Plus className="mr-2 h-4 w-4" />
@@ -149,37 +187,50 @@ export function ColaboradoresModule() {
               <div className="flex flex-col gap-2">
                 <Label>Nome *</Label>
                 <Input
+                  id="nome"
                   value={form.nome}
-                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                  placeholder="Nome completo"
+                  onChange={(e) => {
+                    setForm({ ...form, nome: e.target.value })
+                    if (errors.nome) setErrors(prev => ({ ...prev, nome: false }))
+                  }}
+                  placeholder="Nome do colaborador"
+                  className={errors.nome ? "border-destructive focus-visible:ring-destructive" : ""}
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label>Cargo *</Label>
+                <Label htmlFor="cargo">Cargo *</Label>
                 <Select
                   value={form.cargo}
-                  onValueChange={(v) =>
-                    setForm({ ...form, cargo: v as CargoColaborador })
-                  }
+                  onValueChange={(v) => {
+                    setForm({ ...form, cargo: v as any })
+                    if (errors.cargo) setErrors(prev => ({ ...prev, cargo: false }))
+                  }}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
+                  <SelectTrigger className={errors.cargo ? "border-destructive focus-visible:ring-destructive" : ""}>
+                    <SelectValue placeholder="Selecione o cargo" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(cargoLabels).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="barman">Barman</SelectItem>
+                    <SelectItem value="garcom">Garcom</SelectItem>
+                    <SelectItem value="porteiro">Porteiro</SelectItem>
+                    <SelectItem value="promoter">Promoter</SelectItem>
+                    <SelectItem value="seguranca">Seguranca</SelectItem>
+                    <SelectItem value="caixa">Caixa</SelectItem>
+                    <SelectItem value="outro">Outro</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex flex-col gap-2">
-                <Label>Telefone</Label>
+                <Label htmlFor="tel">Telefone *</Label>
                 <Input
+                  id="tel"
                   value={form.telefone}
-                  onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, telefone: e.target.value })
+                    if (errors.telefone) setErrors(prev => ({ ...prev, telefone: false }))
+                  }}
                   placeholder="(00) 00000-0000"
+                  className={errors.telefone ? "border-destructive focus-visible:ring-destructive" : ""}
                 />
               </div>
               <div className="flex items-center justify-between rounded-lg border border-border p-3">
@@ -339,7 +390,7 @@ export function ColaboradoresModule() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 hover:text-destructive"
-                        onClick={() => removeColaborador(c.id)}
+                        onClick={() => setConfirmDeleteId(c.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                         <span className="sr-only">Remover</span>
@@ -362,6 +413,14 @@ export function ColaboradoresModule() {
           </Table>
         </div>
       </Card>
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(open) => !open && setConfirmDeleteId(null)}
+        onConfirm={handleDeleteColaborador}
+        title="Excluir Colaborador"
+        description="Tem certeza que deseja remover este colaborador? Esta acao nao pode ser desfeita."
+      />
     </div>
   )
 }

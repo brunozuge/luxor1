@@ -8,6 +8,8 @@ import {
   Crown,
   LayoutDashboard,
   UserCog,
+  User,
+  LogOut,
 } from "lucide-react"
 import {
   Sidebar,
@@ -20,8 +22,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  SidebarFooter,
 } from "@/components/ui/sidebar"
 import { useEventData } from "@/lib/event-data"
+import { useAuth } from "@/lib/auth-context"
+import { ConfirmDialog } from "@/components/confirm-dialog"
+import { useState } from "react"
 
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
@@ -40,6 +46,8 @@ interface AppSidebarProps {
 
 export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
   const { pessoasDentro, lotacaoMaxima } = useEventData()
+  const { user, logout } = useAuth()
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const percentage = Math.round((pessoasDentro / lotacaoMaxima) * 100)
   const isNearCapacity = percentage >= 80
 
@@ -92,9 +100,8 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
               </div>
               <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
                 <div
-                  className={`h-full rounded-full transition-all ${
-                    isNearCapacity ? "bg-destructive" : "bg-primary"
-                  }`}
+                  className={`h-full rounded-full transition-all ${isNearCapacity ? "bg-destructive" : "bg-primary"
+                    }`}
                   style={{ width: `${Math.min(percentage, 100)}%` }}
                 />
               </div>
@@ -105,6 +112,43 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarSeparator />
+      <SidebarFooter className="p-4">
+        <div className="flex items-center gap-3 px-2 py-1.5 overflow-hidden">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+            <User className="h-4 w-4" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-medium leading-none truncate text-sidebar-foreground">
+              {user?.name || "Usuário"}
+            </span>
+            <span className="text-xs leading-none truncate text-muted-foreground mt-1">
+              {user?.email || "admin@eventpro.com"}
+            </span>
+          </div>
+        </div>
+        <SidebarMenu className="mt-2">
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => setShowLogoutConfirm(true)}
+              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Sair do Sistema</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        onOpenChange={setShowLogoutConfirm}
+        onConfirm={logout}
+        title="Sair do Sistema"
+        description="Deseja realmente sair do sistema?"
+        confirmText="Sair"
+        variant="destructive"
+      />
     </Sidebar>
   )
 }

@@ -51,6 +51,17 @@ class MesaCamaroteService
         return $mesa;
     }
 
+    public function removeGarrafa($mesaId, $index)
+    {
+        $mesa = MesaCamarote::findOrFail($mesaId);
+        $garrafas = $mesa->garrafas ?? [];
+        if (isset($garrafas[$index])) {
+            array_splice($garrafas, $index, 1);
+            $mesa->update(['garrafas' => $garrafas]);
+        }
+        return $mesa;
+    }
+
     public function delete($id)
     {
         $mesa = MesaCamarote::findOrFail($id);

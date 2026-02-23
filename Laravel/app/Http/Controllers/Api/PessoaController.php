@@ -25,8 +25,8 @@ class PessoaController extends Controller
         $data = $request->validate([
             'nome' => 'required|string',
             'instagram' => 'nullable|string',
-            'cpf_rg' => 'nullable|string',
-            'data_nascimento' => 'nullable|date',
+            'cpf_rg' => 'required|string|cpf|unique:pessoas,cpf_rg',
+            'data_nascimento' => 'required|date',
             'tipo_ingresso' => 'required|in:pista,camarote,vip,free',
             'observacao' => 'nullable|string',
         ]);
@@ -39,8 +39,8 @@ class PessoaController extends Controller
         $data = $request->validate([
             'nome' => 'sometimes|string',
             'instagram' => 'nullable|string',
-            'cpf_rg' => 'nullable|string',
-            'data_nascimento' => 'nullable|date',
+            'cpf_rg' => "sometimes|string|cpf|unique:pessoas,cpf_rg,{$id}",
+            'data_nascimento' => 'sometimes|date',
             'tipo_ingresso' => 'sometimes|in:pista,camarote,vip,free',
             'observacao' => 'nullable|string',
         ]);
