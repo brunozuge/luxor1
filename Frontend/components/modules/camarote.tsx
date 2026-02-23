@@ -4,6 +4,7 @@ import React from "react"
 
 import { useState } from "react"
 import { useEventData } from "@/lib/event-data"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -23,7 +24,7 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Crown, Wine, UserPlus, X, Trophy } from "lucide-react"
+import { Plus, Crown, Wine, UserPlus, X, Trophy, Pencil } from "lucide-react"
 
 export function CamaroteModule() {
   const {
@@ -31,10 +32,13 @@ export function CamaroteModule() {
     pessoas,
     barSales,
     addCamaroteTable,
+    updateCamaroteTable,
     addGarrafaToCamarote,
     addPessoaToCamarote,
     removePessoaFromCamarote,
+    removeGarrafaFromCamarote,
     colaboradores,
+    products,
   } = useEventData()
 
   const [tableDialogOpen, setTableDialogOpen] = useState(false)
@@ -44,6 +48,8 @@ export function CamaroteModule() {
   const [tableForm, setTableForm] = useState({ nome: "", garcom: "" })
   const [garrafaForm, setGarrafaForm] = useState("")
   const [personForm, setPersonForm] = useState("")
+  const [editingTableId, setEditingTableId] = useState<string | null>(null)
+  const [errors, setErrors] = useState<Record<string, boolean>>({})
 
   // Calculate spending per table
   function getTableSpending(tableId: string) {
@@ -67,25 +73,64 @@ export function CamaroteModule() {
 
   function handleAddTable(e: React.FormEvent) {
     e.preventDefault()
-    if (!tableForm.nome) return
-    addCamaroteTable(tableForm)
+
+    const newErrors = {
+      nome: !tableForm.nome,
+      garcom: !tableForm.garcom
+    }
+    setErrors(newErrors)
+
+    if (Object.values(newErrors).some(v => v)) {
+      toast.error("Preencha os campos obrigatorios da mesa.")
+      return
+    }
+
+    if (editingTableId) {
+      updateCamaroteTable(editingTableId, tableForm)
+    } else {
+      addCamaroteTable(tableForm)
+    }
     setTableForm({ nome: "", garcom: "" })
+    setEditingTableId(null)
+    setErrors({})
     setTableDialogOpen(false)
+  }
+
+  function openEditTable(table: any) {
+    setEditingTableId(table.id)
+    setTableForm({ nome: table.nome, garcom: table.garcom })
+    setTableDialogOpen(true)
   }
 
   function handleAddGarrafa(e: React.FormEvent) {
     e.preventDefault()
-    if (!garrafaForm || !selectedTableId) return
+
+    if (!garrafaForm) {
+      setErrors({ garrafa: true })
+      toast.error("O nome da garrafa e obrigatorio.")
+      return
+    }
+    if (!selectedTableId) return toast.error("Erro interno: Mesa nao selecionada.")
+
     addGarrafaToCamarote(selectedTableId, garrafaForm)
     setGarrafaForm("")
+    setErrors({})
     setGarrafaDialogOpen(false)
   }
 
   function handleAddPerson(e: React.FormEvent) {
     e.preventDefault()
-    if (!personForm || !selectedTableId) return
+
+    if (!personForm) {
+      setErrors({ person: true })
+      toast.error("Selecione uma pessoa para adicionar.")
+      return
+    }
+    if (!selectedTableId) return toast.error("Erro interno: Mesa nao selecionada.")
+
     addPessoaToCamarote(selectedTableId, personForm)
     setPersonForm("")
+    setErrors({})
     setAddPersonDialogOpen(false)
   }
 
@@ -98,33 +143,50 @@ export function CamaroteModule() {
             Gestao exclusiva de mesas e consumo
           </p>
         </div>
-        <Dialog open={tableDialogOpen} onOpenChange={setTableDialogOpen}>
+        <Dialog open={tableDialogOpen} onOpenChange={(v) => {
+          setTableDialogOpen(v)
+          if (!v) {
+            setEditingTableId(null)
+            setErrors({})
+            setTableForm({ nome: "", garcom: "" })
+          }
+        }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => {
+              setEditingTableId(null)
+              setTableForm({ nome: "", garcom: "" })
+            }}>
               <Plus className="mr-2 h-4 w-4" />
               Nova Mesa
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md bg-card text-card-foreground">
             <DialogHeader>
-              <DialogTitle>Adicionar Mesa</DialogTitle>
+              <DialogTitle>{editingTableId ? "Editar Mesa" : "Adicionar Mesa"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleAddTable} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <Label>Nome da Mesa *</Label>
                 <Input
                   value={tableForm.nome}
-                  onChange={(e) => setTableForm({ ...tableForm, nome: e.target.value })}
+                  onChange={(e) => {
+                    setTableForm({ ...tableForm, nome: e.target.value })
+                    if (errors.nome) setErrors(prev => ({ ...prev, nome: false }))
+                  }}
                   placeholder="Ex: Mesa 3"
+                  className={errors.nome ? "border-destructive focus-visible:ring-destructive" : ""}
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label>Garcom Responsavel</Label>
+                <Label>Garcom Responsavel *</Label>
                 <Select
                   value={tableForm.garcom}
-                  onValueChange={(v) => setTableForm({ ...tableForm, garcom: v })}
+                  onValueChange={(v) => {
+                    setTableForm({ ...tableForm, garcom: v })
+                    if (errors.garcom) setErrors(prev => ({ ...prev, garcom: false }))
+                  }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={errors.garcom ? "border-destructive focus-visible:ring-destructive" : ""}>
                     <SelectValue placeholder="Selecione o garcom" />
                   </SelectTrigger>
                   <SelectContent>
@@ -138,7 +200,7 @@ export function CamaroteModule() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="submit" className="w-full">Adicionar</Button>
+              <Button type="submit" className="w-full">{editingTableId ? "Salvar Alteracoes" : "Adicionar"}</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -186,13 +248,28 @@ export function CamaroteModule() {
                     <Crown className="h-4 w-4 text-primary" />
                     {table.nome}
                   </CardTitle>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Garcom: {table.garcom || "Nao definido"}
-                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-sm text-muted-foreground">
+                      Garcom: {table.garcom || "Nao definido"}
+                    </p>
+                    {table.garcom && (
+                      <button
+                        type="button"
+                        onClick={() => updateCamaroteTable(table.id, { garcom: "" })}
+                        className="text-muted-foreground hover:text-destructive transition-colors"
+                        title="Remover garcom"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <Badge className="bg-primary text-primary-foreground">
                   R$ {tableSpend.toLocaleString("pt-BR")}
                 </Badge>
+                <Button variant="ghost" size="icon" className="h-8 w-8 ml-2" onClick={() => openEditTable(table)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 {/* Pessoas na mesa */}
@@ -257,8 +334,15 @@ export function CamaroteModule() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {table.garrafas.map((g, i) => (
-                      <Badge key={`${g}-${i}`} className="bg-secondary text-secondary-foreground">
+                      <Badge key={`${g}-${i}`} className="bg-secondary text-secondary-foreground flex items-center gap-1">
                         {g}
+                        <button
+                          type="button"
+                          onClick={() => removeGarrafaFromCamarote(table.id, i)}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       </Badge>
                     ))}
                     {table.garrafas.length === 0 && (
@@ -274,12 +358,13 @@ export function CamaroteModule() {
                     {table.pessoaIds.flatMap(pid =>
                       barSales.filter(s => s.pessoaId === pid)
                     ).sort((a, b) => b.hora.localeCompare(a.hora)).slice(0, 5).map(sale => {
-                      const product = pessoas.find(p => p.id === sale.pessoaId)
+                      const prod = products.find(p => p.id === sale.productId)
+                      const cli = pessoas.find(p => p.id === sale.pessoaId)
                       return (
                         <div key={sale.id} className="flex items-center justify-between text-xs bg-muted/30 p-2 rounded">
                           <div className="flex flex-col">
-                            <span className="font-medium">{sale.quantidade}x {sale.id.startsWith("temp") ? "Venda..." : "Item"}</span>
-                            <span className="text-[10px] text-muted-foreground">{product?.nome} • {sale.hora}</span>
+                            <span className="font-medium">{sale.quantidade}x {prod?.nome || "Item"}</span>
+                            <span className="text-[10px] text-muted-foreground">{cli?.nome || "Desconhecido"} • {sale.hora}</span>
                           </div>
                           <span className="font-bold">R$ {sale.valorTotal.toLocaleString("pt-BR")}</span>
                         </div>
@@ -314,10 +399,10 @@ export function CamaroteModule() {
                   <div key={pessoaId} className="flex items-center gap-3">
                     <span
                       className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${i === 0
-                          ? "bg-warning text-warning-foreground"
-                          : i === 1
-                            ? "bg-muted text-muted-foreground"
-                            : "bg-secondary text-secondary-foreground"
+                        ? "bg-warning text-warning-foreground"
+                        : i === 1
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-secondary text-secondary-foreground"
                         }`}
                     >
                       {i + 1}
@@ -343,16 +428,28 @@ export function CamaroteModule() {
       )}
 
       {/* Add Person Dialog */}
-      <Dialog open={addPersonDialogOpen} onOpenChange={setAddPersonDialogOpen}>
+      <Dialog open={addPersonDialogOpen} onOpenChange={(v) => {
+        setAddPersonDialogOpen(v)
+        if (!v) {
+          setErrors({})
+          setPersonForm("")
+        }
+      }}>
         <DialogContent className="sm:max-w-md bg-card text-card-foreground">
           <DialogHeader>
             <DialogTitle>Adicionar Pessoa a Mesa</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleAddPerson} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label>Pessoa</Label>
-              <Select value={personForm} onValueChange={setPersonForm}>
-                <SelectTrigger>
+              <Label>Pessoa *</Label>
+              <Select
+                value={personForm}
+                onValueChange={(v) => {
+                  setPersonForm(v)
+                  if (errors.person) setErrors(prev => ({ ...prev, person: false }))
+                }}
+              >
+                <SelectTrigger className={errors.person ? "border-destructive focus-visible:ring-destructive" : ""}>
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -370,18 +467,28 @@ export function CamaroteModule() {
       </Dialog>
 
       {/* Add Garrafa Dialog */}
-      <Dialog open={garrafaDialogOpen} onOpenChange={setGarrafaDialogOpen}>
+      <Dialog open={garrafaDialogOpen} onOpenChange={(v) => {
+        setGarrafaDialogOpen(v)
+        if (!v) {
+          setErrors({})
+          setGarrafaForm("")
+        }
+      }}>
         <DialogContent className="sm:max-w-md bg-card text-card-foreground">
           <DialogHeader>
             <DialogTitle>Adicionar Garrafa</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleAddGarrafa} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label>Nome da Garrafa</Label>
+              <Label>Nome da Garrafa *</Label>
               <Input
                 value={garrafaForm}
-                onChange={(e) => setGarrafaForm(e.target.value)}
+                onChange={(e) => {
+                  setGarrafaForm(e.target.value)
+                  if (errors.garrafa) setErrors(prev => ({ ...prev, garrafa: false }))
+                }}
                 placeholder="Ex: Vodka Absolut"
+                className={errors.garrafa ? "border-destructive focus-visible:ring-destructive" : ""}
               />
             </div>
             <Button type="submit" className="w-full">Adicionar</Button>

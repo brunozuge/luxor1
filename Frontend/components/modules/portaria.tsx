@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useEventData, type WristbandColor } from "@/lib/event-data"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -46,7 +47,18 @@ export function PortariaModule() {
   const foundTicket = tickets.find((t) => t.numero === searchTicket && !t.entrou)
 
   function handleEntry() {
-    if (!foundTicket) return
+    if (!foundTicket) {
+      toast.error("Ingresso Invalido", {
+        description: "O numero do ingresso nao foi encontrado ou ja foi utilizado."
+      })
+      return
+    }
+    if (isAtCapacity) {
+      toast.error("Lotacao Esgotada", {
+        description: "Nao e possivel entrar: capacidade maxima atingida."
+      })
+      return
+    }
     marcarEntrada(foundTicket.id, selectedWristband)
     const now = new Date()
     const hora = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
@@ -181,8 +193,8 @@ export function PortariaModule() {
                   type="button"
                   onClick={() => setSelectedWristband(color)}
                   className={`rounded-lg border-2 p-4 text-center transition-all ${selectedWristband === color
-                      ? "border-primary ring-2 ring-primary/30"
-                      : "border-border hover:border-muted-foreground"
+                    ? "border-primary ring-2 ring-primary/30"
+                    : "border-border hover:border-muted-foreground"
                     }`}
                 >
                   <div className={`mx-auto mb-2 h-6 w-6 rounded-full ${wristbandStyles[color]}`} />
@@ -194,7 +206,6 @@ export function PortariaModule() {
 
           <Button
             onClick={handleEntry}
-            disabled={!foundTicket || isAtCapacity}
             className="h-14 text-lg font-semibold"
             size="lg"
           >

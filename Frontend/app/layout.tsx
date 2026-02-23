@@ -18,6 +18,8 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
+import { Toaster } from "@/components/ui/sonner"
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -25,7 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        {children}
+        <Toaster richColors closeButton position="top-right" />
+      </body>
     </html>
   )
 }

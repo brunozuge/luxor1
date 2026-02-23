@@ -29,4 +29,14 @@ class ProdutoService
         $produto = Produto::findOrFail($id);
         return $produto->delete();
     }
+
+    public function bulkCreate(array $products)
+    {
+        $created = [];
+        foreach ($products as $product) {
+            $product['estoque_atual'] = $product['estoque_inicial'];
+            $created[] = Produto::create($product);
+        }
+        return $created;
+    }
 }

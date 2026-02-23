@@ -4,6 +4,7 @@ import React from "react"
 
 import { useState } from "react"
 import { useEventData, type TicketType } from "@/lib/event-data"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -31,8 +32,9 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Search, Trash2, Edit, Users } from "lucide-react"
+import { Plus, Search, Trash2, Pencil, Users } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 
 const ticketTypeLabels: Record<TicketType, string> = {
   pista: "Pista",
@@ -57,10 +59,46 @@ function calcAge(dataNascimento: string) {
   return age
 }
 
+function validateCPF(cpf: string) {
+  if (!cpf) return false
+  cpf = cpf.replace(/[^\d]+/g, "")
+  if (cpf.length !== 11) return false
+
+  // Bloqueia sequencias como 111.111.111-11
+  if (/^(\d)\1+$/.test(cpf)) return false
+
+  let soma = 0
+  let resto
+
+  for (let i = 1; i <= 9; i++) soma = soma + parseInt(cpf.substring(i - 1, i)) * (11 - i)
+  resto = (soma * 10) % 11
+  if (resto === 10 || resto === 11) resto = 0
+  if (resto !== parseInt(cpf.substring(9, 10))) return false
+
+  soma = 0
+  for (let i = 1; i <= 10; i++) soma = soma + parseInt(cpf.substring(i - 1, i)) * (12 - i)
+  resto = (soma * 10) % 11
+  if (resto === 10 || resto === 11) resto = 0
+  if (resto !== parseInt(cpf.substring(10, 11))) return false
+
+  return true
+}
+
+function formatCPF(v: string) {
+  v = v.replace(/\D/g, "")
+  if (v.length > 11) v = v.slice(0, 11)
+  if (v.length <= 3) return v
+  if (v.length <= 6) return v.replace(/(\d{3})(\d+)/, "$1.$2")
+  if (v.length <= 9) return v.replace(/(\d{3})(\d{3})(\d+)/, "$1.$2.$3")
+  return v.replace(/(\d{3})(\d{3})(\d{3})(\d+)/, "$1.$2.$3-$4")
+}
+
 export function PessoasModule() {
-  const { pessoas, addPessoa, removePessoa } = useEventData()
+  const { pessoas, addPessoa, updatePessoa, removePessoa } = useEventData()
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState({
     nome: "",
     instagram: "",
@@ -69,6 +107,7 @@ export function PessoasModule() {
     tipoIngresso: "pista" as TicketType,
     observacao: "",
   })
+  const [errors, setErrors] = useState<Record<string, boolean>>({})
 
   const filtered = pessoas.filter(
     (p) =>
@@ -77,12 +116,119 @@ export function PessoasModule() {
       p.instagram.toLowerCase().includes(search.toLowerCase())
   )
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.nome || !form.dataNascimento) return
-    addPessoa(form)
+
+    const newErrors: Record<string, boolean> = {
+      nome: !form.nome,
+      cpfRg: !form.cpfRg,
+      dataNascimento: !form.dataNascimento,
+      tipoIngresso: !form.tipoIngresso,
+    }
+    setErrors(newErrors)
+
+    if (Object.values(newErrors).some(v => v)) {
+      toast.error("Por favor, preencha todos os campos destacados em vermelho.")
+      return
+    }
+
+    const digitsOnly = form.cpfRg.replace(/\D/g, "")
+    const isEditing = !!editingId
+
+    // 1. Validar CPF (se tiver 11 dígitos)
+    if (digitsOnly.length === 11) {
+      if (!validateCPF(digitsOnly)) {
+        toast.error("CPF Inválido", {
+          description: "Os dígitos verificadores do CPF não conferem. Por favor, revise os números."
+        })
+        setErrors(prev => ({ ...prev, cpfRg: true }))
+        return
+      }
+    } else if (digitsOnly.length > 0 && digitsOnly.length < 11) {
+      // Se informou algo mas não completou 11 dígitos, tratamos como erro de CPF incompleto/inválido
+      toast.error("CPF Inválido", {
+        description: "O CPF deve conter 11 dígitos."
+      })
+      setErrors(prev => ({ ...prev, cpfRg: true }))
+      return
+    }
+
+    // 2. Validar Data de Nascimento (não pode ser futura)
+    if (form.dataNascimento) {
+      const birthDate = new Date(form.dataNascimento)
+      const today = new Date()
+      if (birthDate > today) {
+        toast.error("Data de Nascimento Invalida", {
+          description: "A data de nascimento nao pode ser uma data futura."
+        })
+        setErrors(prev => ({ ...prev, dataNascimento: true }))
+        return
+      }
+    }
+
+    // 3. Validar Unicidade (Frontend)
+    const alreadyExists = pessoas.find(p => {
+      const pCpf = (p.cpfRg || "").replace(/\D/g, "")
+      return pCpf === digitsOnly && p.id !== editingId
+    })
+
+    if (alreadyExists) {
+      toast.error("Documento em Uso", {
+        description: `Este CPF/RG ja esta cadastrado para ${alreadyExists.nome}.`
+      })
+      setErrors(prev => ({ ...prev, cpfRg: true }))
+      return
+    }
+
+    // 4. Se passou em tudo, prossegue com a requisição
+    try {
+      let success = false
+      if (isEditing) {
+        // updatePessoa em lib/event-data.tsx deve retornar algo ou disparar erro
+        const res = await updatePessoa(editingId, form)
+        success = true // Se nao der erro, consideramos sucesso
+      } else {
+        const resId = await addPessoa(form)
+        if (resId) success = true
+      }
+
+      if (success) {
+        // SÓ LIMPA E FECHA SE DER CERTO
+        setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "" })
+        setEditingId(null)
+        setErrors({})
+        setDialogOpen(false)
+      }
+    } catch (err) {
+      console.error("Erro ao salvar:", err)
+      // O toast.promise ja mostra o erro, entao nao fazemos nada aqui para manter a modal aberta
+    }
+  }
+
+  function openEditDialog(pessoa: any) {
+    setEditingId(pessoa.id)
+    setForm({
+      nome: pessoa.nome,
+      instagram: pessoa.instagram || "",
+      cpfRg: formatCPF(pessoa.cpfRg || ""),
+      dataNascimento: pessoa.dataNascimento || "",
+      tipoIngresso: pessoa.tipoIngresso,
+      observacao: pessoa.observacao || "",
+    })
+    setDialogOpen(true)
+  }
+
+  function openNewDialog() {
+    setEditingId(null)
     setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "" })
-    setDialogOpen(false)
+    setDialogOpen(true)
+  }
+
+  function handleDeletePessoa() {
+    if (confirmDeleteId) {
+      removePessoa(confirmDeleteId)
+      setConfirmDeleteId(null)
+    }
   }
 
   return (
@@ -94,16 +240,23 @@ export function PessoasModule() {
             {pessoas.length} pessoas cadastradas
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(v) => {
+          setDialogOpen(v)
+          if (!v) {
+            setEditingId(null)
+            setErrors({})
+            setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "" })
+          }
+        }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={openNewDialog}>
               <Plus className="mr-2 h-4 w-4" />
               Nova Pessoa
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md bg-card text-card-foreground">
             <DialogHeader>
-              <DialogTitle>Cadastrar Pessoa</DialogTitle>
+              <DialogTitle>{editingId ? "Editar Pessoa" : "Cadastrar Pessoa"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
@@ -111,8 +264,12 @@ export function PessoasModule() {
                 <Input
                   id="nome"
                   value={form.nome}
-                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, nome: e.target.value })
+                    if (errors.nome) setErrors(prev => ({ ...prev, nome: false }))
+                  }}
                   placeholder="Nome completo"
+                  className={errors.nome ? "border-destructive focus-visible:ring-destructive" : ""}
                 />
               </div>
               <div className="flex flex-col gap-2">
@@ -120,17 +277,25 @@ export function PessoasModule() {
                 <Input
                   id="instagram"
                   value={form.instagram}
-                  onChange={(e) => setForm({ ...form, instagram: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, instagram: e.target.value })
+                    if (errors.instagram) setErrors(prev => ({ ...prev, instagram: false }))
+                  }}
                   placeholder="@usuario"
+                  className={errors.instagram ? "border-destructive focus-visible:ring-destructive" : ""}
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="cpfRg">CPF/RG/Termo</Label>
+                <Label htmlFor="cpfRg">CPF/RG/Termo *</Label>
                 <Input
                   id="cpfRg"
                   value={form.cpfRg}
-                  onChange={(e) => setForm({ ...form, cpfRg: e.target.value })}
-                  placeholder="Documento"
+                  onChange={(e) => {
+                    setForm({ ...form, cpfRg: formatCPF(e.target.value) })
+                    if (errors.cpfRg) setErrors(prev => ({ ...prev, cpfRg: false }))
+                  }}
+                  placeholder="000.000.000-00"
+                  className={errors.cpfRg ? "border-destructive focus-visible:ring-destructive" : ""}
                 />
               </div>
               <div className="flex flex-col gap-2">
@@ -139,16 +304,23 @@ export function PessoasModule() {
                   id="dataNascimento"
                   type="date"
                   value={form.dataNascimento}
-                  onChange={(e) => setForm({ ...form, dataNascimento: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, dataNascimento: e.target.value })
+                    if (errors.dataNascimento) setErrors(prev => ({ ...prev, dataNascimento: false }))
+                  }}
+                  className={errors.dataNascimento ? "border-destructive focus-visible:ring-destructive" : ""}
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label>Tipo de Ingresso</Label>
+                <Label>Tipo de Ingresso *</Label>
                 <Select
                   value={form.tipoIngresso}
-                  onValueChange={(v) => setForm({ ...form, tipoIngresso: v as TicketType })}
+                  onValueChange={(v) => {
+                    setForm({ ...form, tipoIngresso: v as TicketType })
+                    if (errors.tipoIngresso) setErrors(prev => ({ ...prev, tipoIngresso: false }))
+                  }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={errors.tipoIngresso ? "border-destructive focus-visible:ring-destructive" : ""}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -169,7 +341,7 @@ export function PessoasModule() {
                   rows={2}
                 />
               </div>
-              <Button type="submit" className="w-full">Cadastrar</Button>
+              <Button type="submit" className="w-full">{editingId ? "Salvar Alteracoes" : "Cadastrar"}</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -239,7 +411,7 @@ export function PessoasModule() {
                   <TableRow key={p.id} className="border-border">
                     <TableCell className="font-medium">{p.nome}</TableCell>
                     <TableCell className="text-muted-foreground">{p.instagram || "-"}</TableCell>
-                    <TableCell className="text-muted-foreground font-mono text-xs">{p.cpfRg || "-"}</TableCell>
+                    <TableCell className="text-muted-foreground font-mono text-xs">{formatCPF(p.cpfRg) || "-"}</TableCell>
                     <TableCell>
                       <span className={isMenor ? "text-warning font-semibold" : ""}>
                         {age} {isMenor ? "(menor)" : ""}
@@ -254,14 +426,24 @@ export function PessoasModule() {
                       {p.observacao || "-"}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removePessoa(p.id)}
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(p)}
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setConfirmDeleteId(p.id)}
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
@@ -277,6 +459,14 @@ export function PessoasModule() {
           </Table>
         </div>
       </Card>
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(open) => !open && setConfirmDeleteId(null)}
+        onConfirm={handleDeletePessoa}
+        title="Excluir Pessoa"
+        description="Tem certeza que deseja remover esta pessoa? Isso tambem pode afetar ingressos e vendas associadas."
+      />
     </div>
   )
 }

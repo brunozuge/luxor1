@@ -68,6 +68,15 @@ class MesaCamaroteController extends Controller
         return response()->json($this->service->addGarrafa($id, $data['garrafa']));
     }
 
+    public function removeGarrafa(Request $request, $id)
+    {
+        $data = $request->validate([
+            'index' => 'required|integer',
+        ]);
+
+        return response()->json($this->service->removeGarrafa($id, $data['index']));
+    }
+
     public function destroy($id)
     {
         $this->service->delete($id);

@@ -4,6 +4,7 @@ import React from "react"
 
 import { useState } from "react"
 import { useEventData } from "@/lib/event-data"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,6 +22,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+
+const formatCurrency = (value: string) => {
+  const digits = value.replace(/\D/g, "")
+  const amount = parseInt(digits || "0") / 100
+  return amount.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
+const parseCurrency = (value: string) => {
+  const clean = value.replace(/\./g, "").replace(",", ".")
+  return parseFloat(clean) || 0
+}
 import {
   Table,
   TableBody,
@@ -32,27 +47,33 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Wine, TrendingUp, Package, DollarSign, ShoppingCart, Trophy } from "lucide-react"
+import { Plus, Wine, TrendingUp, Package, DollarSign, ShoppingCart, Trophy, Trash2, X, Pencil } from "lucide-react"
 import { BarRanking } from "./bar-ranking"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 
 export function BarModule() {
-  const { products, barSales, pessoas, colaboradores, addProduct, addBarSale } = useEventData()
+  const { products, barSales, pessoas, colaboradores, addProducts, addBarSales, removeProduct, updateProduct, removeBarSale, updateBarSale } = useEventData()
   const [productDialogOpen, setProductDialogOpen] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<any | null>(null)
   const [saleDialogOpen, setSaleDialogOpen] = useState(false)
+  const [editingSale, setEditingSale] = useState<any | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [confirmDeleteSaleId, setConfirmDeleteSaleId] = useState<string | null>(null)
+  const [errors, setErrors] = useState<Record<string, any>>({})
 
-  const [productForm, setProductForm] = useState({
+  const [productRows, setProductRows] = useState([{
     nome: "",
     custo: "",
     precoVenda: "",
     estoqueInicial: "",
-  })
+  }])
 
-  const [saleForm, setSaleForm] = useState({
+  const [saleVendedor, setSaleVendedor] = useState("")
+  const [salePessoaId, setSalePessoaId] = useState("")
+  const [saleRows, setSaleRows] = useState([{
     productId: "",
-    pessoaId: "",
-    vendedor: "",
     quantidade: "1",
-  })
+  }])
 
   const totalRevenue = barSales.reduce((sum, s) => sum + s.valorTotal, 0)
   const totalCost = barSales.reduce((sum, s) => {
@@ -75,30 +96,202 @@ export function BarModule() {
   }, {})
   const peakHour = Object.entries(salesByHour).sort(([, a], [, b]) => b - a)[0]
 
+  function handleAddRow() {
+    setProductRows([...productRows, { nome: "", custo: "", precoVenda: "", estoqueInicial: "" }])
+  }
+
+  function handleRemoveRow(index: number) {
+    if (productRows.length === 1) return
+    setProductRows(productRows.filter((_, i) => i !== index))
+  }
+
+  function openEditProduct(product: any) {
+    setEditingProduct(product)
+    setProductRows([{
+      nome: product.nome,
+      custo: String(product.custo),
+      precoVenda: String(product.precoVenda),
+      estoqueInicial: String(product.estoqueInicial),
+    }])
+    setProductDialogOpen(true)
+  }
+
   function handleAddProduct(e: React.FormEvent) {
     e.preventDefault()
-    if (!productForm.nome) return
-    addProduct({
-      nome: productForm.nome,
-      custo: Number(productForm.custo) || 0,
-      precoVenda: Number(productForm.precoVenda) || 0,
-      estoqueInicial: Number(productForm.estoqueInicial) || 0,
+
+    const newErrors: Record<string, boolean> = {}
+    let hasError = false
+
+    productRows.forEach((row, index) => {
+      if (!row.nome) { newErrors[`product-${index}-nome`] = true; hasError = true; }
+      if (!row.custo) { newErrors[`product-${index}-custo`] = true; hasError = true; }
+      if (!row.precoVenda) { newErrors[`product-${index}-precoVenda`] = true; hasError = true; }
+      if (!row.estoqueInicial) { newErrors[`product-${index}-estoqueInicial`] = true; hasError = true; }
     })
-    setProductForm({ nome: "", custo: "", precoVenda: "", estoqueInicial: "" })
+
+    setErrors(newErrors)
+    if (hasError) {
+      toast.error("Preencha todos os campos destacados em vermelho.")
+      return
+    }
+
+    if (editingProduct) {
+      const p = productRows[0]
+      if (Number(p.precoVenda) < 0 || Number(p.custo) < 0 || Number(p.estoqueInicial) < 0) {
+        toast.error("Valores nao podem ser negativos.")
+        return
+      }
+
+      // Check Duplicates (except self)
+      const duplicate = products.find(x => x.nome.toLowerCase() === p.nome.toLowerCase() && x.id !== editingProduct.id)
+      if (duplicate) return toast.error(`Já existe um produto com o nome "${p.nome}".`)
+
+      updateProduct(editingProduct.id, {
+        nome: p.nome,
+        custo: parseCurrency(p.custo),
+        precoVenda: parseCurrency(p.precoVenda),
+        estoqueInicial: Number(p.estoqueInicial),
+        estoqueAtual: editingProduct.estoqueAtual + (Number(p.estoqueInicial) - editingProduct.estoqueInicial)
+      })
+      setEditingProduct(null)
+    } else {
+      const validProducts = productRows.filter(p => p.nome.trim())
+
+      for (const p of validProducts) {
+        const dup = products.find(x => x.nome.toLowerCase() === p.nome.toLowerCase())
+        if (dup) {
+          toast.error("Produto Duplicado", {
+            description: `O produto "${p.nome}" já existe no estoque.`
+          })
+          return
+        }
+      }
+
+      if (validProducts.some(p => Number(p.precoVenda) < 0 || Number(p.custo) < 0 || Number(p.estoqueInicial) < 0)) {
+        toast.error("Valores nao podem ser negativos.")
+        return
+      }
+
+      addProducts(validProducts.map(p => ({
+        nome: p.nome,
+        custo: parseCurrency(p.custo),
+        precoVenda: parseCurrency(p.precoVenda),
+        estoqueInicial: Number(p.estoqueInicial) || 0,
+      })))
+    }
+
+    setProductRows([{ nome: "", custo: "", precoVenda: "", estoqueInicial: "" }])
+    setErrors({})
     setProductDialogOpen(false)
+  }
+
+  function handleDeleteProduct() {
+    if (confirmDeleteId) {
+      removeProduct(confirmDeleteId)
+      setConfirmDeleteId(null)
+    }
+  }
+
+  function handleAddSaleRow() {
+    setSaleRows([...saleRows, { productId: "", quantidade: "1" }])
+  }
+
+  function handleRemoveSaleRow(index: number) {
+    if (saleRows.length === 1) return
+    setSaleRows(saleRows.filter((_, i) => i !== index))
   }
 
   function handleAddSale(e: React.FormEvent) {
     e.preventDefault()
-    if (!saleForm.productId || !saleForm.pessoaId || !saleForm.vendedor) return
-    addBarSale({
-      productId: saleForm.productId,
-      pessoaId: saleForm.pessoaId,
-      vendedor: saleForm.vendedor,
-      quantidade: Number(saleForm.quantidade) || 1,
+
+    const newErrors: Record<string, boolean> = {
+      saleVendedor: !saleVendedor,
+      salePessoaId: !salePessoaId || salePessoaId === "none"
+    }
+
+    saleRows.forEach((r, i) => {
+      if (!r.productId) newErrors[`sale-${i}-product`] = true
+      if (!r.quantidade || Number(r.quantidade) <= 0) newErrors[`sale-${i}-qty`] = true
     })
-    setSaleForm({ productId: "", pessoaId: "", vendedor: "", quantidade: "1" })
+
+    setErrors(newErrors)
+
+    if (Object.values(newErrors).some(v => v)) {
+      toast.error("Venda Incompleta", {
+        description: "Preencha o vendedor, cliente e todos os produtos."
+      })
+      return
+    }
+
+    if (editingSale) {
+      updateBarSale(editingSale.id, {
+        vendedor: saleVendedor,
+        quantidade: Number(saleRows[0].quantidade),
+        pessoaId: salePessoaId || undefined
+      })
+      setEditingSale(null)
+    } else {
+      addBarSales(
+        saleVendedor,
+        saleRows.map(r => ({
+          productId: r.productId,
+          quantidade: Math.floor(Number(r.quantidade)) || 1,
+        })),
+        salePessoaId || undefined
+      )
+    }
+
+    setSaleVendedor("")
+    setSalePessoaId("")
+    setSaleRows([{ productId: "", quantidade: "1" }])
     setSaleDialogOpen(false)
+  }
+
+  function openEditSale(sale: any) {
+    setEditingSale(sale)
+    setSaleVendedor(sale.vendedor)
+    setSalePessoaId(sale.pessoaId)
+    setSaleRows([{
+      productId: sale.productId,
+      quantidade: String(sale.quantidade)
+    }])
+    setSaleDialogOpen(true)
+  }
+
+  function handleDeleteSale() {
+    if (confirmDeleteSaleId) {
+      removeBarSale(confirmDeleteSaleId)
+      setConfirmDeleteSaleId(null)
+    }
+  }
+
+  function exportToExcel() {
+    const headers = ["Hora", "Produto", "Cliente", "Vendedor", "Qtd", "Total"]
+    const rows = barSales.map(s => {
+      const prod = products.find(p => p.id === s.productId)
+      const pessoa = pessoas.find(p => p.id === s.pessoaId)
+      return [
+        s.hora,
+        prod?.nome || "-",
+        pessoa?.nome || "-",
+        s.vendedor,
+        s.quantidade,
+        s.valorTotal.toFixed(2)
+      ].join(";")
+    })
+
+    const csvContent = [headers.join(";"), ...rows].join("\n")
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    link.href = URL.createObjectURL(blob)
+    link.setAttribute("download", `vendas_bar_${new Date().toLocaleDateString()}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  function handlePrint() {
+    window.print()
   }
 
   return (
@@ -111,143 +304,262 @@ export function BarModule() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
+          <Dialog open={productDialogOpen} onOpenChange={(v) => {
+            setProductDialogOpen(v)
+            if (!v) {
+              setEditingProduct(null)
+              setErrors({})
+              setProductRows([{ nome: "", custo: "", precoVenda: "", estoqueInicial: "" }])
+            }
+          }}>
             <DialogTrigger asChild>
               <Button variant="outline">
                 <Plus className="mr-2 h-4 w-4" />
-                Produto
+                Produtos
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md bg-card text-card-foreground">
+            <DialogContent className="sm:max-w-xl bg-card text-card-foreground">
               <DialogHeader>
-                <DialogTitle>Adicionar Produto</DialogTitle>
+                <DialogTitle>{editingProduct ? "Editar Produto" : "Cadastrar Produtos"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddProduct} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="prod-nome">Nome *</Label>
-                  <Input
-                    id="prod-nome"
-                    value={productForm.nome}
-                    onChange={(e) => setProductForm({ ...productForm, nome: e.target.value })}
-                    placeholder="Nome do produto"
-                  />
+                <div className="max-h-[400px] overflow-y-auto pr-2 flex flex-col gap-6">
+                  {productRows.map((row, index) => (
+                    <div key={index} className="flex flex-col gap-3 p-4 rounded-lg border border-border relative bg-secondary/20">
+                      {productRows.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={() => handleRemoveRow(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <div className="flex flex-col gap-2">
+                        <Label>Nome do Produto *</Label>
+                        <Input
+                          value={row.nome}
+                          onChange={(e) => {
+                            const newRows = [...productRows]
+                            newRows[index].nome = e.target.value
+                            setProductRows(newRows)
+                            if (errors[`product-${index}-nome`]) setErrors(prev => ({ ...prev, [`product-${index}-nome`]: false }))
+                          }}
+                          placeholder="Ex: Cerveja Lata"
+                          className={errors[`product-${index}-nome`] ? "border-destructive focus-visible:ring-destructive" : ""}
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="flex flex-col gap-2">
+                          <Label>Custo Unitario (R$) *</Label>
+                          <Input
+                            value={row.custo}
+                            onChange={(e) => {
+                              const newRows = [...productRows]
+                              newRows[index].custo = formatCurrency(e.target.value)
+                              setProductRows(newRows)
+                              if (errors[`product-${index}-custo`]) setErrors(prev => ({ ...prev, [`product-${index}-custo`]: false }))
+                            }}
+                            placeholder="0,00"
+                            className={errors[`product-${index}-custo`] ? "border-destructive focus-visible:ring-destructive" : ""}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Label>Preco de Venda (R$) *</Label>
+                          <Input
+                            value={row.precoVenda}
+                            onChange={(e) => {
+                              const newRows = [...productRows]
+                              newRows[index].precoVenda = formatCurrency(e.target.value)
+                              setProductRows(newRows)
+                              if (errors[`product-${index}-precoVenda`]) setErrors(prev => ({ ...prev, [`product-${index}-precoVenda`]: false }))
+                            }}
+                            placeholder="0,00"
+                            className={errors[`product-${index}-precoVenda`] ? "border-destructive focus-visible:ring-destructive" : ""}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Label>Estoque Inicial *</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={row.estoqueInicial}
+                            onChange={(e) => {
+                              const newRows = [...productRows]
+                              newRows[index].estoqueInicial = e.target.value
+                              setProductRows(newRows)
+                              if (errors[`product-${index}-estoqueInicial`]) setErrors(prev => ({ ...prev, [`product-${index}-estoqueInicial`]: false }))
+                            }}
+                            placeholder="0"
+                            className={errors[`product-${index}-estoqueInicial`] ? "border-destructive focus-visible:ring-destructive" : ""}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="flex flex-col gap-2">
-                    <Label>Custo (R$)</Label>
-                    <Input
-                      type="number"
-                      value={productForm.custo}
-                      onChange={(e) => setProductForm({ ...productForm, custo: e.target.value })}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label>Venda (R$)</Label>
-                    <Input
-                      type="number"
-                      value={productForm.precoVenda}
-                      onChange={(e) => setProductForm({ ...productForm, precoVenda: e.target.value })}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label>Estoque</Label>
-                    <Input
-                      type="number"
-                      value={productForm.estoqueInicial}
-                      onChange={(e) => setProductForm({ ...productForm, estoqueInicial: e.target.value })}
-                    />
-                  </div>
+                <div className="flex gap-2">
+                  {!editingProduct && (
+                    <Button type="button" variant="outline" className="flex-1" onClick={handleAddRow}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Mais um Produto
+                    </Button>
+                  )}
+                  <Button type="submit" className="flex-1">
+                    {editingProduct ? "Salvar Alteracoes" : "Salvar Todos"}
+                  </Button>
                 </div>
-                <Button type="submit" className="w-full">Adicionar</Button>
               </form>
             </DialogContent>
           </Dialog>
-          <Dialog open={saleDialogOpen} onOpenChange={setSaleDialogOpen}>
+          <Dialog open={saleDialogOpen} onOpenChange={(v) => {
+            setSaleDialogOpen(v)
+            if (!v) {
+              setEditingSale(null)
+              setSaleVendedor("")
+              setSalePessoaId("")
+              setSaleRows([{ productId: "", quantidade: "1" }])
+            }
+          }}>
             <DialogTrigger asChild>
               <Button>
                 <ShoppingCart className="mr-2 h-4 w-4" />
                 Nova Venda
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md bg-card text-card-foreground">
+            <DialogContent className="sm:max-w-xl bg-card text-card-foreground">
               <DialogHeader>
-                <DialogTitle>Registrar Venda</DialogTitle>
+                <DialogTitle>{editingSale ? "Editar Venda" : "Registrar Venda"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddSale} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label>Produto *</Label>
-                  <Select
-                    value={saleForm.productId}
-                    onValueChange={(v) => setSaleForm({ ...saleForm, productId: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.filter((p) => p.estoqueAtual > 0).map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.nome} - R$ {p.precoVenda} (estoque: {p.estoqueAtual})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>Cliente *</Label>
-                  <Select
-                    value={saleForm.pessoaId}
-                    onValueChange={(v) => setSaleForm({ ...saleForm, pessoaId: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a pessoa" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {pessoas.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>Funcionario (vendedor) *</Label>
-                  <Select
-                    value={saleForm.vendedor}
-                    onValueChange={(v) => setSaleForm({ ...saleForm, vendedor: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o funcionario" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {colaboradores
-                        .filter((c) => c.ativo)
-                        .map((c) => (
-                          <SelectItem key={c.id} value={c.nome}>
-                            {c.nome} ({c.cargo})
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <Label>Funcionario (vendedor) *</Label>
+                    <Select
+                      value={saleVendedor}
+                      onValueChange={(v) => {
+                        setSaleVendedor(v)
+                        if (errors.saleVendedor) setErrors(prev => ({ ...prev, saleVendedor: false }))
+                      }}
+                    >
+                      <SelectTrigger className={errors.saleVendedor ? "border-destructive focus-visible:ring-destructive" : ""}>
+                        <SelectValue placeholder="Selecione o funcionario" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {colaboradores
+                          .filter((c) => c.ativo)
+                          .map((c) => (
+                            <SelectItem key={c.id} value={c.nome}>
+                              {c.nome} ({c.cargo})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label>Cliente</Label>
+                    <Select
+                      value={salePessoaId}
+                      onValueChange={(v) => {
+                        setSalePessoaId(v)
+                        if (errors.salePessoaId) setErrors(prev => ({ ...prev, salePessoaId: false }))
+                      }}
+                    >
+                      <SelectTrigger className={errors.salePessoaId ? "border-destructive focus-visible:ring-destructive" : ""}>
+                        <SelectValue placeholder="Selecione a pessoa" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pessoas.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.nome}
                           </SelectItem>
                         ))}
-                    </SelectContent>
-                  </Select>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Label>Quantidade</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={saleForm.quantidade}
-                    onChange={(e) => setSaleForm({ ...saleForm, quantidade: e.target.value })}
-                  />
+
+                <div className="max-h-[300px] overflow-y-auto pr-2 flex flex-col gap-4">
+                  {saleRows.map((row, index) => (
+                    <div key={index} className="flex items-end gap-3 p-3 rounded-lg border border-border bg-secondary/10 relative">
+                      <div className="flex-1 flex flex-col gap-2">
+                        <Label className="text-xs">Produto *</Label>
+                        <Select
+                          value={row.productId}
+                          onValueChange={(v) => {
+                            const newRows = [...saleRows]
+                            newRows[index].productId = v
+                            setSaleRows(newRows)
+                            if (errors[`sale-${index}-product`]) setErrors(prev => ({ ...prev, [`sale-${index}-product`]: false }))
+                          }}
+                        >
+                          <SelectTrigger className={errors[`sale-${index}-product`] ? "border-destructive focus-visible:ring-destructive" : ""}>
+                            <SelectValue placeholder="Selecione produto" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.filter((p) => p.estoqueAtual > 0).map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.nome} - R$ {p.precoVenda}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="w-24 flex flex-col gap-2">
+                        <Label className="text-xs">Qtd</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={row.quantidade}
+                          onChange={(e) => {
+                            const newRows = [...saleRows]
+                            newRows[index].quantidade = e.target.value
+                            setSaleRows(newRows)
+                            if (errors[`sale-${index}-qty`]) setErrors(prev => ({ ...prev, [`sale-${index}-qty`]: false }))
+                          }}
+                          placeholder="1"
+                          className={errors[`sale-${index}-qty`] ? "border-destructive focus-visible:ring-destructive" : ""}
+                        />
+                      </div>
+                      {saleRows.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleRemoveSaleRow(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                {saleForm.productId && (
-                  <div className="rounded-lg bg-secondary/50 p-3 text-sm">
-                    <span className="text-muted-foreground">Total: </span>
-                    <span className="font-bold">
-                      R$ {((products.find((p) => p.id === saleForm.productId)?.precoVenda || 0) * (Number(saleForm.quantidade) || 1)).toLocaleString("pt-BR")}
+
+                <div className="flex flex-col gap-3 pt-2">
+                  {!editingSale && (
+                    <Button type="button" variant="outline" onClick={handleAddSaleRow} className="w-full">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Adicionar mais Item
+                    </Button>
+                  )}
+                  <div className="rounded-lg bg-primary/10 p-3 flex justify-between items-center">
+                    <span className="text-sm font-medium">Total do Pedido:</span>
+                    <span className="text-lg font-bold text-primary">
+                      R$ {saleRows.reduce((sum, r) => {
+                        const p = products.find(x => x.id === r.productId)
+                        return sum + (p ? p.precoVenda * (Number(r.quantidade) || 0) : 0)
+                      }, 0).toLocaleString("pt-BR")}
                     </span>
                   </div>
-                )}
-                <Button type="submit" className="w-full">Registrar Venda</Button>
+                  <Button type="submit" className="w-full h-11">
+                    Finalizar Venda
+                  </Button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
@@ -315,6 +627,7 @@ export function BarModule() {
                     <TableHead>Lucro/Un</TableHead>
                     <TableHead>Estoque</TableHead>
                     <TableHead>Vendidos</TableHead>
+                    <TableHead className="text-right">Acoes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -334,9 +647,8 @@ export function BarModule() {
                           <div className="flex items-center gap-2">
                             <div className="h-2 w-16 overflow-hidden rounded-full bg-secondary">
                               <div
-                                className={`h-full rounded-full ${
-                                  stockPercent < 20 ? "bg-destructive" : "bg-primary"
-                                }`}
+                                className={`h-full rounded-full ${stockPercent < 20 ? "bg-destructive" : "bg-primary"
+                                  }`}
                                 style={{ width: `${stockPercent}%` }}
                               />
                             </div>
@@ -348,6 +660,26 @@ export function BarModule() {
                         <TableCell>
                           <Badge variant="outline" className="border-border">{p.sold}</Badge>
                         </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
+                              onClick={() => openEditProduct(p)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => setConfirmDeleteId(p.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     )
                   })}
@@ -357,6 +689,14 @@ export function BarModule() {
           </Card>
         </TabsContent>
         <TabsContent value="vendas">
+          <div className="mb-4 flex gap-2 justify-end">
+            <Button variant="outline" size="sm" onClick={exportToExcel}>
+              Exportar Excel (CSV)
+            </Button>
+            <Button variant="outline" size="sm" onClick={handlePrint}>
+              Imprimir / PDF
+            </Button>
+          </div>
           <Card className="bg-card border-border overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
@@ -368,6 +708,7 @@ export function BarModule() {
                     <TableHead>Vendedor</TableHead>
                     <TableHead>Qtd</TableHead>
                     <TableHead>Total</TableHead>
+                    <TableHead className="text-right">Acoes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -383,6 +724,26 @@ export function BarModule() {
                         <TableCell>{s.quantidade}</TableCell>
                         <TableCell className="font-semibold">
                           R$ {s.valorTotal.toLocaleString("pt-BR")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
+                              onClick={() => openEditSale(s)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => setConfirmDeleteSaleId(s.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     )
@@ -416,6 +777,22 @@ export function BarModule() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(open) => !open && setConfirmDeleteId(null)}
+        onConfirm={handleDeleteProduct}
+        title="Excluir Produto"
+        description="Tem certeza que deseja excluir este produto? Esta acao nao pode ser desfeita."
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteSaleId !== null}
+        onOpenChange={(open) => !open && setConfirmDeleteSaleId(null)}
+        onConfirm={handleDeleteSale}
+        title="Excluir Venda"
+        description="Deseja realmente remover esta venda? O estoque do produto sera devolvido."
+      />
     </div>
   )
 }

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react"
 import { toast } from "sonner" // Assuming sonner is available based on package.json
+import { useAuth } from "./auth-context"
 
 // --- Types ---
 
@@ -87,9 +88,13 @@ interface EventContextType extends EventData {
   addTicket: (t: Omit<Ticket, "id" | "entrou" | "horaEntrada" | "pulseira">) => Promise<void>
   marcarEntrada: (ticketId: string, pulseira: WristbandColor) => Promise<void>
   addProduct: (p: Omit<Product, "id" | "estoqueAtual">) => Promise<void>
+  addProducts: (ps: Omit<Product, "id" | "estoqueAtual">[]) => Promise<void>
   updateProduct: (id: string, p: Partial<Product>) => Promise<void>
   removeProduct: (id: string) => Promise<void>
   addBarSale: (s: Omit<BarSale, "id" | "hora" | "valorTotal">) => Promise<void>
+  addBarSales: (vendedor: string, items: { productId: string; quantidade: number }[], pessoaId?: string) => Promise<void>
+  updateBarSale: (id: string, s: Partial<BarSale>) => Promise<void>
+  removeBarSale: (id: string) => Promise<void>
 
   addColaborador: (c: Omit<Colaborador, "id">) => Promise<void>
   updateColaborador: (id: string, c: Partial<Colaborador>) => Promise<void>
@@ -99,6 +104,7 @@ interface EventContextType extends EventData {
   addGarrafaToCamarote: (tableId: string, garrafa: string) => Promise<void>
   addPessoaToCamarote: (tableId: string, pessoaId: string) => Promise<void>
   removePessoaFromCamarote: (tableId: string, pessoaId: string) => Promise<void>
+  removeGarrafaFromCamarote: (tableId: string, index: number) => Promise<void>
   setLotacaoMaxima: (n: number) => void
   pessoasDentro: number
 }
@@ -124,8 +130,10 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     lotacaoMaxima: 500
   })
   const [loading, setLoading] = useState(false)
+  const { token, isAuthenticated } = useAuth()
 
   const fetchData = useCallback(async (quiet = false) => {
+    if (!token) return
     if (!quiet) setLoading(true)
     try {
       const urls = [
@@ -137,11 +145,23 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         `${API_URL}/mesas-camarote`,
       ]
 
-      const responses = await Promise.all(urls.map(url => fetch(url)))
+      const responses = await Promise.all(
+        urls.map(url =>
+          fetch(url, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: "application/json",
+            },
+          })
+        )
+      )
 
       // Check for any non-ok responses
       for (const res of responses) {
-        if (!res.ok) throw new Error(`API Error: ${res.statusText}`)
+        if (!res.ok) {
+          if (res.status === 401) return // Auth error, let context handle
+          throw new Error(`API Error: ${res.statusText} (${res.url})`)
+        }
       }
 
       const [pessoas, ingressos, produtos, vendas, colaboradores, mesas] = await Promise.all(
@@ -210,75 +230,108 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     } finally {
       if (!quiet) setLoading(false)
     }
-  }, [])
+  }, [token])
 
   useEffect(() => {
     fetchData()
   }, [fetchData])
 
   const addPessoa = useCallback(async (p: Omit<Person, "id" | "createdAt">) => {
-    const tempId = "temp-" + Date.now()
-    const previousPessoas = [...data.pessoas]
-
-    // Optimistic Update
-    setData(prev => ({
-      ...prev,
-      pessoas: [...prev.pessoas, { ...p, id: tempId, createdAt: new Date().toISOString() }]
-    }))
-
-    try {
-      const res = await fetch(`${API_URL}/pessoas`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nome: p.nome,
-          instagram: p.instagram,
-          cpf_rg: p.cpfRg,
-          data_nascimento: p.dataNascimento,
-          tipo_ingresso: p.tipoIngresso,
-          observacao: p.observacao
+    const promise = async () => {
+      let res
+      try {
+        res = await fetch(`${API_URL}/pessoas`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            nome: p.nome,
+            instagram: p.instagram,
+            cpf_rg: p.cpfRg.replace(/\D/g, ""),
+            data_nascimento: p.dataNascimento,
+            tipo_ingresso: p.tipoIngresso,
+            observacao: p.observacao
+          })
         })
-      })
-      if (!res.ok) throw new Error("Falha no servidor")
+      } catch (networkError) {
+        throw new Error("Erro de conexão com o servidor")
+      }
+
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.errors ? Object.values(errData.errors).flat()[0] as string : "Erro ao cadastrar")
+      }
       const newItem = await res.json()
-      toast.success("Pessoa cadastrada!")
+
+      // Update state ONLY after success
+      setData(prev => ({
+        ...prev,
+        pessoas: [...prev.pessoas, newItem]
+      }))
+
       fetchData(true)
-      return String(newItem.id)
-    } catch (error) {
-      setData(prev => ({ ...prev, pessoas: previousPessoas }))
-      toast.error("Erro ao cadastrar pessoa. Tente novamente.")
-      return undefined
+      return newItem
     }
-  }, [data.pessoas, fetchData])
+
+    const pRef = promise()
+
+    toast.promise(pRef, {
+      loading: "Sincronizando com o servidor...",
+      success: "Pessoa cadastrada com sucesso!",
+      error: (err) => `Erro no Cadastro: ${err.message || "Falha na sincronização"}`
+    })
+
+    return await pRef
+  }, [token, fetchData])
 
   const updatePessoa = useCallback(async (id: string, p: Partial<Person>) => {
-    const previousPessoas = [...data.pessoas]
-    setData(prev => ({
-      ...prev,
-      pessoas: prev.pessoas.map(x => x.id === id ? { ...x, ...p } : x)
-    }))
-
-    try {
-      const res = await fetch(`${API_URL}/pessoas/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nome: p.nome,
-          instagram: p.instagram,
-          cpf_rg: p.cpfRg,
-          data_nascimento: p.dataNascimento,
-          tipo_ingresso: p.tipoIngresso,
-          observacao: p.observacao
+    const promise = async () => {
+      let res
+      try {
+        res = await fetch(`${API_URL}/pessoas/${id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            nome: p.nome,
+            instagram: p.instagram || "",
+            cpf_rg: p.cpfRg ? p.cpfRg.replace(/\D/g, "") : undefined,
+            data_nascimento: p.dataNascimento,
+            tipo_ingresso: p.tipoIngresso,
+            observacao: p.observacao
+          })
         })
-      })
-      if (!res.ok) throw new Error("Falha no servidor")
-      toast.success("Cadastro atualizado!")
+      } catch (networkError) {
+        throw new Error("Erro de conexão com o servidor")
+      }
+
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.errors ? Object.values(errData.errors).flat()[0] as string : "Erro ao atualizar")
+      }
+
+      // Update state ONLY after success
+      setData(prev => ({
+        ...prev,
+        pessoas: prev.pessoas.map(x => x.id === id ? { ...x, ...p } : x)
+      }))
+
       fetchData(true)
-    } catch (error) {
-      setData(prev => ({ ...prev, pessoas: previousPessoas }))
-      toast.error("Erro ao atualizar. Revertendo...")
     }
-  }, [data.pessoas, fetchData])
+
+    const pRef = promise()
+    toast.promise(pRef, {
+      loading: "Atualizando dados...",
+      success: "Cadastro atualizado!",
+      error: (err) => `Erro na Atualização: ${err.message || "Falha na sincronização"}`
+    })
+
+    await pRef
+  }, [token, fetchData])
 
   const removePessoa = useCallback(async (id: string) => {
     const previousPessoas = [...data.pessoas]
@@ -288,7 +341,10 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }))
 
     try {
-      const res = await fetch(`${API_URL}/pessoas/${id}`, { method: "DELETE" })
+      const res = await fetch(`${API_URL}/pessoas/${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      })
       if (!res.ok) throw new Error("Falha no servidor")
       toast.success("Removido com sucesso!")
       fetchData(true)
@@ -309,7 +365,10 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch(`${API_URL}/ingressos`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           numero: t.numero,
           lote: t.lote,
@@ -340,7 +399,10 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch(`${API_URL}/ingressos/${ticketId}/check-in`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ pulseira })
       })
       if (!res.ok) throw new Error("Falha no servidor")
@@ -362,7 +424,10 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch(`${API_URL}/produtos`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           nome: p.nome,
           custo: p.custo,
@@ -377,7 +442,44 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       setData(prev => ({ ...prev, products: previousProducts }))
       toast.error("Erro ao adicionar produto.")
     }
-  }, [data.products, fetchData])
+  }, [data.products, token, fetchData])
+
+  const addProducts = useCallback(async (ps: Omit<Product, "id" | "estoqueAtual">[]) => {
+    const previousProducts = [...data.products]
+    const tempProducts = ps.map((p, i) => ({ ...p, id: `temp-bulk-${i}`, estoqueAtual: p.estoqueInicial }))
+
+    setData(prev => ({
+      ...prev,
+      products: [...prev.products, ...tempProducts]
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/produtos/bulk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          products: ps.map(p => ({
+            nome: p.nome,
+            custo: p.custo,
+            preco_venda: p.precoVenda,
+            estoque_inicial: p.estoqueInicial
+          }))
+        })
+      })
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.errors ? Object.values(errData.errors).flat()[0] as string : "Erro ao cadastrar produtos")
+      }
+      toast.success(`${ps.length} produtos adicionados!`)
+      fetchData(true)
+    } catch (error: any) {
+      setData(prev => ({ ...prev, products: previousProducts }))
+      toast.error(error.message || "Erro ao adicionar produtos.")
+    }
+  }, [data.products, token, fetchData])
 
   const addBarSale = useCallback(async (s: Omit<BarSale, "id" | "hora" | "valorTotal">) => {
     const previousProducts = [...data.products]
@@ -394,7 +496,10 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch(`${API_URL}/vendas-bar`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           produto_id: s.productId,
           pessoa_id: s.pessoaId,
@@ -409,7 +514,119 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       setData(prev => ({ ...prev, products: previousProducts, barSales: previousSales }))
       toast.error("Erro na venda.")
     }
-  }, [data.products, data.barSales, fetchData])
+  }, [data.products, data.barSales, token, fetchData])
+
+  const addBarSales = useCallback(async (vendedor: string, items: { productId: string; quantidade: number }[], pessoaId?: string) => {
+    const previousProducts = [...data.products]
+    const previousSales = [...data.barSales]
+
+    const now = new Date()
+    const hora = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+
+    const tempSales = items.map((item, i) => {
+      const prod = data.products.find(p => p.id === item.productId)
+      return {
+        id: `temp-sale-${Date.now()}-${i}`,
+        productId: item.productId,
+        pessoaId: pessoaId || "none",
+        vendedor,
+        quantidade: item.quantidade,
+        valorTotal: (prod?.precoVenda || 0) * item.quantidade,
+        hora
+      }
+    })
+
+    // Optimistic inventory and sales update
+    setData(prev => ({
+      ...prev,
+      products: prev.products.map(p => {
+        const item = items.find(i => i.productId === p.id)
+        return item ? { ...p, estoqueAtual: p.estoqueAtual - item.quantidade } : p
+      }),
+      barSales: [...tempSales, ...prev.barSales]
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/vendas-bar/bulk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          vendedor,
+          pessoa_id: pessoaId === "none" ? null : pessoaId,
+          items: items.map(i => ({
+            produto_id: i.productId,
+            quantidade: i.quantidade
+          }))
+        })
+      })
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.message || "Falha no servidor")
+      }
+      toast.success("Vendas registradas!")
+      fetchData(true)
+    } catch (error: any) {
+      setData(prev => ({ ...prev, products: previousProducts, barSales: previousSales }))
+      toast.error(error.message || "Erro nas vendas.")
+    }
+  }, [data.products, data.barSales, token, fetchData])
+
+  const updateBarSale = useCallback(async (id: string, s: Partial<BarSale>) => {
+    const previousSales = [...data.barSales]
+    const previousProducts = [...data.products]
+
+    setData(prev => ({
+      ...prev,
+      barSales: prev.barSales.map(x => (x.id === id ? { ...x, ...s } : x))
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/vendas-bar/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          vendedor: s.vendedor,
+          quantidade: s.quantidade,
+          pessoa_id: s.pessoaId === "none" ? null : s.pessoaId,
+        })
+      })
+      if (!res.ok) throw new Error("Erro no servidor")
+      toast.success("Venda atualizada!")
+      fetchData(true)
+    } catch (error) {
+      setData(prev => ({ ...prev, barSales: previousSales, products: previousProducts }))
+      toast.error("Erro ao atualizar venda.")
+    }
+  }, [data.barSales, data.products, token, fetchData])
+
+  const removeBarSale = useCallback(async (id: string) => {
+    const previousSales = [...data.barSales]
+    const previousProducts = [...data.products]
+
+    setData(prev => ({
+      ...prev,
+      barSales: prev.barSales.filter(x => x.id !== id)
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/vendas-bar/${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error("Erro no servidor")
+      toast.success("Venda removida!")
+      fetchData(true)
+    } catch (error) {
+      setData(prev => ({ ...prev, barSales: previousSales, products: previousProducts }))
+      toast.error("Erro ao remover venda.")
+    }
+  }, [data.barSales, data.products, token, fetchData])
 
   const addColaborador = useCallback(async (c: Omit<Colaborador, "id">) => {
     const previousColabs = [...data.colaboradores]
@@ -447,7 +664,10 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     try {
       await fetch(`${API_URL}/mesas-camarote/${tableId}/pessoas`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ pessoa_id: pessoaId })
       })
       fetchData(true)
@@ -457,62 +677,212 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [fetchData])
 
   // Placeholder for simple updates
-  const updateProduct = async (id: string, p: Partial<Product>) => {
-    await fetch(`${API_URL}/produtos/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(p)
-    })
-    fetchData(true)
-  }
-  const removeProduct = async (id: string) => {
-    await fetch(`${API_URL}/produtos/${id}`, { method: "DELETE" })
-    fetchData(true)
-  }
-  const updateColaborador = async (id: string, c: Partial<Colaborador>) => {
-    await fetch(`${API_URL}/colaboradores/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(c)
-    })
-    fetchData(true)
-  }
-  const removeColaborador = async (id: string) => {
-    await fetch(`${API_URL}/colaboradores/${id}`, { method: "DELETE" })
-    fetchData(true)
-  }
-  const addCamaroteTable = async (t: Omit<CamaroteTable, "id" | "pessoaIds" | "garrafas">) => {
-    await fetch(`${API_URL}/mesas-camarote`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(t)
-    })
-    fetchData(true)
-  }
-  const updateCamaroteTable = async (id: string, t: Partial<CamaroteTable>) => {
-    await fetch(`${API_URL}/mesas-camarote/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(t)
-    })
-    fetchData(true)
-  }
+  const updateProduct = useCallback(async (id: string, p: Partial<Product>) => {
+    const previousProducts = [...data.products]
+    setData(prev => ({
+      ...prev,
+      products: prev.products.map(x => (x.id === id ? { ...x, ...p } : x))
+    }))
+    try {
+      await fetch(`${API_URL}/produtos/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          nome: p.nome,
+          custo: p.custo,
+          preco_venda: p.precoVenda,
+          estoque_inicial: p.estoqueInicial,
+          estoque_atual: p.estoqueAtual
+        })
+      })
+      fetchData(true)
+    } catch (error) {
+      setData(prev => ({ ...prev, products: previousProducts }))
+      toast.error("Erro ao atualizar produto.")
+    }
+  }, [data.products, token, fetchData])
+
+  const removeProduct = useCallback(async (id: string) => {
+    const previousProducts = [...data.products]
+    setData(prev => ({
+      ...prev,
+      products: prev.products.filter(x => x.id !== id)
+    }))
+    try {
+      await fetch(`${API_URL}/produtos/${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      fetchData(true)
+    } catch (error) {
+      setData(prev => ({ ...prev, products: previousProducts }))
+      toast.error("Erro ao remover produto.")
+    }
+  }, [data.products, token, fetchData])
+  const updateColaborador = useCallback(async (id: string, c: Partial<Colaborador>) => {
+    const previousColabs = [...data.colaboradores]
+    setData(prev => ({
+      ...prev,
+      colaboradores: prev.colaboradores.map(x => (x.id === id ? { ...x, ...c } : x))
+    }))
+    try {
+      await fetch(`${API_URL}/colaboradores/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(c)
+      })
+      fetchData(true)
+    } catch (error) {
+      setData(prev => ({ ...prev, colaboradores: previousColabs }))
+      toast.error("Erro ao atualizar colaborador.")
+    }
+  }, [data.colaboradores, token, fetchData])
+
+  const removeColaborador = useCallback(async (id: string) => {
+    const previousColabs = [...data.colaboradores]
+    setData(prev => ({
+      ...prev,
+      colaboradores: prev.colaboradores.filter(x => x.id !== id)
+    }))
+    try {
+      await fetch(`${API_URL}/colaboradores/${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      fetchData(true)
+    } catch (error) {
+      setData(prev => ({ ...prev, colaboradores: previousColabs }))
+      toast.error("Erro ao remover colaborador.")
+    }
+  }, [data.colaboradores, token, fetchData])
+  const addCamaroteTable = useCallback(async (t: Omit<CamaroteTable, "id" | "pessoaIds" | "garrafas">) => {
+    const previousTables = [...data.camaroteTables]
+    const tempId = "temp-" + Date.now()
+
+    setData(prev => ({
+      ...prev,
+      camaroteTables: [...prev.camaroteTables, { ...t, id: tempId, pessoaIds: [], garrafas: [] }]
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/mesas-camarote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(t)
+      })
+      if (!res.ok) throw new Error("Erro ao criar mesa")
+      fetchData(true)
+    } catch (error) {
+      setData(prev => ({ ...prev, camaroteTables: previousTables }))
+      toast.error("Erro ao adicionar mesa.")
+    }
+  }, [data.camaroteTables, token, fetchData])
+
+  const updateCamaroteTable = useCallback(async (id: string, t: Partial<CamaroteTable>) => {
+    const previousTables = [...data.camaroteTables]
+
+    setData(prev => ({
+      ...prev,
+      camaroteTables: prev.camaroteTables.map(x => x.id === id ? { ...x, ...t } : x)
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/mesas-camarote/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(t)
+      })
+      if (!res.ok) throw new Error("Erro ao atualizar mesa")
+      fetchData(true)
+    } catch (error) {
+      setData(prev => ({ ...prev, camaroteTables: previousTables }))
+      toast.error("Erro ao atualizar mesa.")
+    }
+  }, [data.camaroteTables, token, fetchData])
   const addGarrafaToCamarote = async (tableId: string, garrafa: string) => {
     await fetch(`${API_URL}/mesas-camarote/${tableId}/garrafas`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
       body: JSON.stringify({ garrafa })
     })
     fetchData(true)
   }
-  const removePessoaFromCamarote = async (tableId: string, pessoaId: string) => {
-    await fetch(`${API_URL}/mesas-camarote/${tableId}/pessoas`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pessoa_id: pessoaId })
-    })
-    fetchData(true)
-  }
+  const removePessoaFromCamarote = useCallback(async (tableId: string, pessoaId: string) => {
+    const previousTables = [...data.camaroteTables]
+
+    // Optimistic Update
+    setData(prev => ({
+      ...prev,
+      camaroteTables: prev.camaroteTables.map(t =>
+        t.id === tableId
+          ? { ...t, pessoaIds: t.pessoaIds.filter(id => id !== pessoaId) }
+          : t
+      )
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/mesas-camarote/${tableId}/pessoas`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ pessoa_id: pessoaId })
+      })
+      if (!res.ok) throw new Error("Erro ao remover pessoa")
+      fetchData(true)
+    } catch (error) {
+      setData(prev => ({ ...prev, camaroteTables: previousTables }))
+      toast.error("Erro ao remover pessoa da mesa.")
+    }
+  }, [data.camaroteTables, token, fetchData])
+
+  const removeGarrafaFromCamarote = useCallback(async (tableId: string, index: number) => {
+    const previousTables = [...data.camaroteTables]
+
+    setData(prev => ({
+      ...prev,
+      camaroteTables: prev.camaroteTables.map(t => {
+        if (t.id === tableId) {
+          const newGarrafas = [...t.garrafas]
+          newGarrafas.splice(index, 1)
+          return { ...t, garrafas: newGarrafas }
+        }
+        return t
+      })
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/mesas-camarote/${tableId}/garrafas`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ index })
+      })
+      if (!res.ok) throw new Error("Erro ao remover garrafa")
+      fetchData(true)
+    } catch (error) {
+      setData(prev => ({ ...prev, camaroteTables: previousTables }))
+      toast.error("Erro ao remover garrafa.")
+    }
+  }, [data.camaroteTables, token, fetchData])
 
   const pessoasDentro = data.tickets.filter(t => t.entrou).length
 
@@ -526,9 +896,13 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       addTicket,
       marcarEntrada,
       addProduct,
+      addProducts,
       updateProduct,
       removeProduct,
       addBarSale,
+      addBarSales,
+      updateBarSale,
+      removeBarSale,
       addColaborador,
       updateColaborador,
       removeColaborador,
@@ -537,6 +911,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       addGarrafaToCamarote,
       addPessoaToCamarote,
       removePessoaFromCamarote,
+      removeGarrafaFromCamarote,
       setLotacaoMaxima,
       pessoasDentro,
     }}>

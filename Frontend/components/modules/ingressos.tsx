@@ -4,6 +4,7 @@ import React from "react"
 
 import { useState } from "react"
 import { useEventData, type PaymentMethod } from "@/lib/event-data"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,6 +22,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+
+const formatCurrency = (value: string) => {
+  const digits = value.replace(/\D/g, "")
+  const amount = parseInt(digits || "0") / 100
+  return amount.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
+const parseCurrency = (value: string) => {
+  const clean = value.replace(/\./g, "").replace(",", ".")
+  return parseFloat(clean) || 0
+}
 import {
   Table,
   TableBody,
@@ -41,15 +56,16 @@ const paymentLabels: Record<PaymentMethod, string> = {
 }
 
 export function IngressosModule() {
-  const { tickets, pessoas, addTicket } = useEventData()
+  const { tickets, pessoas, addTicket, colaboradores } = useEventData()
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [errors, setErrors] = useState<Record<string, boolean>>({})
   const [form, setForm] = useState({
     numero: "",
-    lote: "",
+    lote: "1",
     valorPago: "",
     vendedor: "",
-    formaPagamento: "pix" as PaymentMethod,
+    formaPagamento: "dinheiro" as PaymentMethod,
   })
   const filtered = tickets.filter((t) => t.numero.includes(search))
 
@@ -59,15 +75,32 @@ export function IngressosModule() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.numero) return
+
+    const newErrors = {
+      numero: !form.numero,
+      lote: !form.lote,
+      valorPago: !form.valorPago,
+      vendedor: !form.vendedor,
+      formaPagamento: !form.formaPagamento
+    }
+    setErrors(newErrors)
+
+    if (Object.values(newErrors).some(v => v)) {
+      toast.error("Preencha todos os campos destacados em vermelho.")
+      return
+    }
+    if (Number(form.valorPago) < 0) {
+      toast.error("O valor nao pode ser negativo.")
+      return
+    }
     addTicket({
       numero: form.numero,
       lote: form.lote,
-      valorPago: Number(form.valorPago) || 0,
+      valorPago: parseCurrency(form.valorPago),
       vendedor: form.vendedor,
       formaPagamento: form.formaPagamento,
     })
-    setForm({ numero: "", lote: "", valorPago: "", vendedor: "", formaPagamento: "pix" })
+    setForm({ numero: "", lote: "1", valorPago: "", vendedor: "", formaPagamento: "dinheiro" })
     setDialogOpen(false)
   }
 
@@ -80,7 +113,13 @@ export function IngressosModule() {
             {tickets.length} ingressos registrados
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(v) => {
+          setDialogOpen(v)
+          if (!v) {
+            setErrors({})
+            setForm({ numero: "", lote: "1", valorPago: "", vendedor: "", formaPagamento: "dinheiro" })
+          }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -94,52 +133,79 @@ export function IngressosModule() {
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="numero">Numero *</Label>
+                  <Label htmlFor="num">Numero *</Label>
                   <Input
-                    id="numero"
+                    id="num"
                     value={form.numero}
-                    onChange={(e) => setForm({ ...form, numero: e.target.value })}
-                    placeholder="Ex: 006"
+                    onChange={(e) => {
+                      setForm({ ...form, numero: e.target.value })
+                      if (errors.numero) setErrors(prev => ({ ...prev, numero: false }))
+                    }}
+                    placeholder="000"
+                    className={errors.numero ? "border-destructive focus-visible:ring-destructive" : ""}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="lote">Lote</Label>
+                  <Label htmlFor="lote">Lote *</Label>
                   <Input
                     id="lote"
                     value={form.lote}
-                    onChange={(e) => setForm({ ...form, lote: e.target.value })}
-                    placeholder="Ex: 1"
+                    onChange={(e) => {
+                      setForm({ ...form, lote: e.target.value })
+                      if (errors.lote) setErrors(prev => ({ ...prev, lote: false }))
+                    }}
+                    placeholder="1"
+                    className={errors.lote ? "border-destructive focus-visible:ring-destructive" : ""}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="valor">Valor (R$)</Label>
+                  <Label htmlFor="valor">Valor Pago (R$) *</Label>
                   <Input
                     id="valor"
-                    type="number"
                     value={form.valorPago}
-                    onChange={(e) => setForm({ ...form, valorPago: e.target.value })}
-                    placeholder="0"
+                    onChange={(e) => {
+                      setForm({ ...form, valorPago: formatCurrency(e.target.value) })
+                      if (errors.valorPago) setErrors(prev => ({ ...prev, valorPago: false }))
+                    }}
+                    placeholder="0,00"
+                    className={errors.valorPago ? "border-destructive focus-visible:ring-destructive" : ""}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="vendedor">Vendedor</Label>
-                  <Input
-                    id="vendedor"
+                  <Label>Vendedor *</Label>
+                  <Select
                     value={form.vendedor}
-                    onChange={(e) => setForm({ ...form, vendedor: e.target.value })}
-                  />
+                    onValueChange={(v) => {
+                      setForm({ ...form, vendedor: v })
+                      if (errors.vendedor) setErrors(prev => ({ ...prev, vendedor: false }))
+                    }}
+                  >
+                    <SelectTrigger className={errors.vendedor ? "border-destructive focus-visible:ring-destructive" : ""}>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {colaboradores.filter(c => c.cargo === "promoter" || c.cargo === "caixa").map((c) => (
+                        <SelectItem key={c.id} value={c.nome}>
+                          {c.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <Label>Forma de Pagamento</Label>
+                <Label>Forma de Pagamento *</Label>
                 <Select
                   value={form.formaPagamento}
-                  onValueChange={(v) => setForm({ ...form, formaPagamento: v as PaymentMethod })}
+                  onValueChange={(v) => {
+                    setForm({ ...form, formaPagamento: v as PaymentMethod })
+                    if (errors.formaPagamento) setErrors(prev => ({ ...prev, formaPagamento: false }))
+                  }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={errors.formaPagamento ? "border-destructive focus-visible:ring-destructive" : ""}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
