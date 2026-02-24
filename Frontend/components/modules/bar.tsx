@@ -760,22 +760,22 @@ export function BarModule() {
             </div>
           </Card>
         </TabsContent>
-        <TabsContent value="ranking">
-          <Card className="bg-card border-border overflow-hidden">
-            <CardHeader className="flex flex-row items-center gap-3 border-b border-border pb-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10">
-                <Trophy className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <CardTitle className="text-base">Ranking de Gastos</CardTitle>
-                <p className="text-xs text-muted-foreground">Quem mais consome no bar</p>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <BarRanking />
-            </CardContent>
-          </Card>
-        </TabsContent>
+<TabsContent value="ranking">
+  <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10">
+        <Trophy className="h-5 w-5 text-accent" />
+      </div>
+      <div>
+        <h3 className="text-base font-semibold">Ranking de Consumo</h3>
+        <p className="text-xs text-muted-foreground">Quem mais gastou no bar</p>
+      </div>
+    </div>
+    <div className="p-4 sm:p-5">
+      <BarRanking />
+    </div>
+  </div>
+  </TabsContent>
       </Tabs>
 
       <ConfirmDialog
