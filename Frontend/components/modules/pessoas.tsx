@@ -35,6 +35,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Search, Trash2, Pencil, Users } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { ConfirmDialog } from "@/components/confirm-dialog"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const ticketTypeLabels: Record<TicketType, string> = {
   pista: "Pista",
@@ -94,7 +95,7 @@ function formatCPF(v: string) {
 }
 
 export function PessoasModule() {
-  const { pessoas, addPessoa, updatePessoa, removePessoa } = useEventData()
+  const { pessoas, addPessoa, updatePessoa, removePessoa, loading } = useEventData()
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -348,35 +349,48 @@ export function PessoasModule() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pessoas.length}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Maiores</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {pessoas.filter((p) => calcAge(p.dataNascimento) >= 18).length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Menores</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-warning">
-              {pessoas.filter((p) => calcAge(p.dataNascimento) < 18).length}
-            </div>
-          </CardContent>
-        </Card>
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="bg-card border-border">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              {loading && pessoas.length === 0 ? (
+                <>
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-4" />
+                </>
+              ) : i === 1 ? (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Pessoas</CardTitle>
+                  <Users className="h-4 w-4 text-primary" />
+                </>
+              ) : i === 2 ? (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Maiores de Idade</CardTitle>
+                  <Users className="h-4 w-4 text-success" />
+                </>
+              ) : (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Menores de Idade</CardTitle>
+                  <Users className="h-4 w-4 text-warning" />
+                </>
+              )}
+            </CardHeader>
+            <CardContent>
+              {loading && pessoas.length === 0 ? (
+                <Skeleton className="h-8 w-16" />
+              ) : i === 1 ? (
+                <div className="text-2xl font-bold">{pessoas.length}</div>
+              ) : i === 2 ? (
+                <div className="text-2xl font-bold">
+                  {pessoas.filter((p) => calcAge(p.dataNascimento) >= 18).length}
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-warning">
+                  {pessoas.filter((p) => calcAge(p.dataNascimento) < 18).length}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="relative">
@@ -404,51 +418,65 @@ export function PessoasModule() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((p) => {
-                const age = calcAge(p.dataNascimento)
-                const isMenor = age < 18
-                return (
-                  <TableRow key={p.id} className="border-border">
-                    <TableCell className="font-medium">{p.nome}</TableCell>
-                    <TableCell className="text-muted-foreground">{p.instagram || "-"}</TableCell>
-                    <TableCell className="text-muted-foreground font-mono text-xs">{formatCPF(p.cpfRg) || "-"}</TableCell>
-                    <TableCell>
-                      <span className={isMenor ? "text-warning font-semibold" : ""}>
-                        {age} {isMenor ? "(menor)" : ""}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={ticketTypeColors[p.tipoIngresso]}>
-                        {ticketTypeLabels[p.tipoIngresso]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs max-w-32 truncate">
-                      {p.observacao || "-"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditDialog(p)}
-                          className="h-8 w-8 text-muted-foreground hover:text-primary"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setConfirmDeleteId(p.id)}
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+              {loading && pessoas.length === 0 ? (
+                [1, 2, 3, 4, 5].map((i) => (
+                  <TableRow key={i} className="border-border">
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24 font-mono" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-20 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-16" /></TableCell>
                   </TableRow>
-                )
-              })}
-              {filtered.length === 0 && (
+                ))
+              ) : (
+                filtered.map((p) => {
+                  const age = calcAge(p.dataNascimento)
+                  const isMenor = age < 18
+                  return (
+                    <TableRow key={p.id} className="border-border">
+                      <TableCell className="font-medium">{p.nome}</TableCell>
+                      <TableCell className="text-muted-foreground">{p.instagram || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground font-mono text-xs">{formatCPF(p.cpfRg) || "-"}</TableCell>
+                      <TableCell>
+                        <span className={isMenor ? "text-warning font-semibold" : ""}>
+                          {age} {isMenor ? "(menor)" : ""}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={ticketTypeColors[p.tipoIngresso]}>
+                          {ticketTypeLabels[p.tipoIngresso]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs max-w-32 truncate">
+                        {p.observacao || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(p)}
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setConfirmDeleteId(p.id)}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+              {!loading && filtered.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Nenhuma pessoa encontrada

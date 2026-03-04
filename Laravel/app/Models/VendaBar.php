@@ -4,8 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+use App\Traits\BelongsToEvento;
+
 class VendaBar extends Model
 {
+    use BelongsToEvento;
+
     protected $table = 'vendas_bar';
 
     protected $fillable = [
@@ -15,6 +19,7 @@ class VendaBar extends Model
         'quantidade',
         'valor_total',
         'hora',
+        'evento_id',
     ];
 
     public function produto()

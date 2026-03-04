@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Search, UserCog, Trash2, Pencil, Phone } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
+import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 
 const cargoLabels: Record<CargoColaborador, string> = {
@@ -61,6 +62,7 @@ export function ColaboradoresModule() {
     addColaborador,
     updateColaborador,
     removeColaborador,
+    loading,
   } = useEventData()
 
   const [search, setSearch] = useState("")
@@ -255,37 +257,44 @@ export function ColaboradoresModule() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total
-            </CardTitle>
-            <UserCog className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{colaboradores.length}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Ativos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success">{ativos}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Inativos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">{inativos}</div>
-          </CardContent>
-        </Card>
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="bg-card border-border">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              {loading && colaboradores.length === 0 ? (
+                <>
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-4" />
+                </>
+              ) : i === 1 ? (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Equipe</CardTitle>
+                  <UserCog className="h-4 w-4 text-primary" />
+                </>
+              ) : i === 2 ? (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Ativos</CardTitle>
+                  <div className="h-2 w-2 rounded-full bg-success" />
+                </>
+              ) : (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Inativos</CardTitle>
+                  <div className="h-2 w-2 rounded-full bg-destructive" />
+                </>
+              )}
+            </CardHeader>
+            <CardContent>
+              {loading && colaboradores.length === 0 ? (
+                <Skeleton className="h-8 w-16" />
+              ) : i === 1 ? (
+                <div className="text-2xl font-bold">{colaboradores.length}</div>
+              ) : i === 2 ? (
+                <div className="text-2xl font-bold text-success">{ativos}</div>
+              ) : (
+                <div className="text-2xl font-bold text-destructive">{inativos}</div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Search and filter */}
@@ -330,76 +339,90 @@ export function ColaboradoresModule() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((c) => (
-                <TableRow key={c.id} className="border-border">
-                  <TableCell className="font-medium">{c.nome}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={cargoColors[c.cargo]}
-                    >
-                      {cargoLabels[c.cargo]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {c.telefone ? (
-                      <span className="flex items-center gap-1 text-muted-foreground">
-                        <Phone className="h-3 w-3" />
-                        {c.telefone}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-mono">{c.qtdVendas}</TableCell>
-                  <TableCell className="font-semibold">
-                    {c.totalVendas > 0
-                      ? `R$ ${c.totalVendas.toLocaleString("pt-BR")}`
-                      : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={c.ativo}
-                        onCheckedChange={() => handleToggleAtivo(c.id)}
-                      />
+              {loading && colaboradores.length === 0 ? (
+                [1, 2, 3, 4, 5].map((i) => (
+                  <TableRow key={i} className="border-border">
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-16 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                filtered.map((c) => (
+                  <TableRow key={c.id} className="border-border">
+                    <TableCell className="font-medium">{c.nome}</TableCell>
+                    <TableCell>
                       <Badge
                         variant="outline"
-                        className={
-                          c.ativo
-                            ? "bg-success/20 text-success border-success/30"
-                            : "bg-destructive/20 text-destructive border-destructive/30"
-                        }
+                        className={cargoColors[c.cargo]}
                       >
-                        {c.ativo ? "Ativo" : "Inativo"}
+                        {cargoLabels[c.cargo]}
                       </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => openEditDialog(c.id)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                        <span className="sr-only">Editar</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 hover:text-destructive"
-                        onClick={() => setConfirmDeleteId(c.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Remover</span>
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
+                    </TableCell>
+                    <TableCell>
+                      {c.telefone ? (
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          {c.telefone}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono">{c.qtdVendas}</TableCell>
+                    <TableCell className="font-semibold">
+                      {c.totalVendas > 0
+                        ? `R$ ${c.totalVendas.toLocaleString("pt-BR")}`
+                        : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={c.ativo}
+                          onCheckedChange={() => handleToggleAtivo(c.id)}
+                        />
+                        <Badge
+                          variant="outline"
+                          className={
+                            c.ativo
+                              ? "bg-success/20 text-success border-success/30"
+                              : "bg-destructive/20 text-destructive border-destructive/30"
+                          }
+                        >
+                          {c.ativo ? "Ativo" : "Inativo"}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => openEditDialog(c.id)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          <span className="sr-only">Editar</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:text-destructive"
+                          onClick={() => setConfirmDeleteId(c.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Remover</span>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+              {!loading && filtered.length === 0 && (
                 <TableRow>
                   <TableCell
                     colSpan={7}

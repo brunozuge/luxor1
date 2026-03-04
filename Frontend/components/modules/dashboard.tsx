@@ -13,6 +13,7 @@ import {
   TrendingUp,
   AlertTriangle,
 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function DashboardModule() {
   const {
@@ -23,7 +24,51 @@ export function DashboardModule() {
     camaroteTables,
     pessoasDentro,
     lotacaoMaxima,
+    loading,
   } = useEventData()
+
+  if (loading && pessoas.length === 0) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="mt-2 h-4 w-64" />
+        </div>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="bg-card border-border">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-4 rounded-full" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="mt-2 h-2 w-full" />
+                <Skeleton className="mt-2 h-3 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="bg-card border-border">
+              <CardHeader>
+                <Skeleton className="h-5 w-32" />
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+                <Skeleton className="mt-4 h-12 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   const percentage = Math.round((pessoasDentro / lotacaoMaxima) * 100)
   const isNearCapacity = percentage >= 80
@@ -78,9 +123,8 @@ export function DashboardModule() {
             <div className="text-3xl font-bold tabular-nums">{pessoasDentro}</div>
             <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
               <div
-                className={`h-full rounded-full transition-all ${
-                  isNearCapacity ? "bg-destructive" : "bg-primary"
-                }`}
+                className={`h-full rounded-full transition-all ${isNearCapacity ? "bg-destructive" : "bg-primary"
+                  }`}
                 style={{ width: `${Math.min(percentage, 100)}%` }}
               />
             </div>
