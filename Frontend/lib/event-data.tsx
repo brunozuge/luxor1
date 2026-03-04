@@ -469,53 +469,91 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [token, selectedEventId, fetchData])
 
   const removePessoa = useCallback(async (id: string) => {
-    const res = await fetch(`${API_URL}/pessoas/${id}`, {
-      method: "DELETE",
-      headers: {
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      }
-    })
-    if (!res.ok) throw new Error("Erro ao remover")
-    fetchData(true, ["pessoas"])
+    // Optimistic update
+    setData(prev => ({ ...prev, pessoas: prev.pessoas.filter(x => x.id !== id) }))
+    try {
+      const res = await fetch(`${API_URL}/pessoas/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        }
+      })
+      if (!res.ok) throw new Error("Erro ao remover")
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao remover pessoa")
+      fetchData(true, ["pessoas"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const addTicket = useCallback(async (t: Omit<Ticket, "id" | "entrou" | "horaEntrada" | "pulseira">) => {
-    const res = await fetch(`${API_URL}/ingressos`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify({
-        numero: t.numero,
-        lote: t.lote,
-        valor_pago: t.valorPago,
-        vendedor: t.vendedor,
-        forma_pagamento: t.formaPagamento,
-        pessoa_id: t.pessoaId
+    const tempId = `temp-${Date.now()}`
+    const optimisticTicket: Ticket = {
+      ...t,
+      id: tempId,
+      entrou: false,
+      horaEntrada: null,
+      pulseira: null
+    }
+
+    // Optimistic update
+    setData(prev => ({ ...prev, tickets: [optimisticTicket, ...prev.tickets] }))
+
+    try {
+      const res = await fetch(`${API_URL}/ingressos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify({
+          numero: t.numero,
+          lote: t.lote,
+          valor_pago: t.valorPago,
+          vendedor: t.vendedor,
+          forma_pagamento: t.formaPagamento,
+          pessoa_id: t.pessoaId
+        })
       })
-    })
-    if (!res.ok) throw new Error("Erro ingresso")
-    fetchData(true, ["tickets"])
+      if (!res.ok) throw new Error("Erro ingresso")
+      fetchData(true, ["tickets"])
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao criar ingresso")
+      fetchData(true, ["tickets"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const marcarEntrada = useCallback(async (ticketId: string, pulseira: WristbandColor) => {
-    const res = await fetch(`${API_URL}/ingressos/${ticketId}/check-in`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify({ pulseira })
-    })
-    if (!res.ok) throw new Error("Erro check-in")
-    fetchData(true, ["tickets"])
+    const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+
+    // Optimistic update
+    setData(prev => ({
+      ...prev,
+      tickets: prev.tickets.map(t => t.id === ticketId ? { ...t, entrou: true, horaEntrada: now, pulseira } : t)
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/ingressos/${ticketId}/check-in`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify({ pulseira })
+      })
+      if (!res.ok) throw new Error("Erro check-in")
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao marcar entrada")
+      fetchData(true, ["tickets"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const addProduct = useCallback(async (p: Omit<Product, "id" | "estoqueAtual">) => {
@@ -576,59 +614,133 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [token, selectedEventId, fetchData])
 
   const removeProduct = useCallback(async (id: string) => {
-    const res = await fetch(`${API_URL}/produtos/${id}`, {
-      method: "DELETE",
-      headers: {
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      }
-    })
-    if (!res.ok) throw new Error("Erro remover produto")
-    fetchData(true, ["products"])
+    // Optimistic update
+    setData(prev => ({ ...prev, products: prev.products.filter(x => x.id !== id) }))
+    try {
+      const res = await fetch(`${API_URL}/produtos/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        }
+      })
+      if (!res.ok) throw new Error("Erro remover produto")
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao remover produto")
+      fetchData(true, ["products"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const addBarSale = useCallback(async (s: Omit<BarSale, "id" | "hora" | "valorTotal">) => {
-    const res = await fetch(`${API_URL}/vendas-bar`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify({
-        produto_id: s.productId,
-        pessoa_id: s.pessoaId,
-        vendedor: s.vendedor,
-        quantidade: s.quantidade
+    const prod = data.products.find(p => p.id === s.productId)
+    const valorTotal = (prod?.precoVenda || 0) * s.quantidade
+    const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+
+    const tempId = `temp-${Date.now()}`
+    const optimisticSale: BarSale = {
+      ...s,
+      id: tempId,
+      hora: now,
+      valorTotal: valorTotal
+    }
+
+    // Optimistic update
+    setData(prev => ({
+      ...prev,
+      barSales: [optimisticSale, ...prev.barSales],
+      products: prev.products.map(p => p.id === s.productId ? { ...p, estoqueAtual: p.estoqueAtual - s.quantidade } : p)
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/vendas-bar`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify({
+          produto_id: s.productId,
+          pessoa_id: s.pessoaId,
+          vendedor: s.vendedor,
+          quantidade: s.quantidade
+        })
       })
-    })
-    if (!res.ok) throw new Error("Erro venda bar")
-    fetchData(true, ["barSales", "products"])
-  }, [token, selectedEventId, fetchData])
+      if (!res.ok) throw new Error("Erro venda bar")
+      const realSale = await res.json()
+
+      // Replace temp with real
+      setData(prev => ({
+        ...prev,
+        barSales: prev.barSales.map(sale => sale.id === tempId ? { ...sale, id: String(realSale.id) } : sale)
+      }))
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro registrar venda")
+      fetchData(true, ["barSales", "products"])
+    }
+  }, [token, selectedEventId, fetchData, data.products])
 
   const addBarSales = useCallback(async (vendedor: string, items: { productId: string; quantidade: number }[], pessoaId?: string) => {
-    const res = await fetch(`${API_URL}/vendas-bar/bulk`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify({
+    const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    const tempSales: BarSale[] = items.map((item, idx) => {
+      const prod = data.products.find(p => p.id === item.productId)
+      return {
+        id: `temp-bulk-${Date.now()}-${idx}`,
+        productId: item.productId,
+        pessoaId: (pessoaId === "none" ? "" : pessoaId) || "",
         vendedor,
-        pessoa_id: pessoaId === "none" ? null : pessoaId,
-        items: items.map(i => ({
-          produto_id: i.productId,
-          quantidade: i.quantidade
-        }))
-      })
+        quantidade: item.quantidade,
+        valorTotal: (prod?.precoVenda || 0) * item.quantidade,
+        hora: now
+      }
     })
-    if (!res.ok) throw new Error("Erro bulk vendas")
-    fetchData(true, ["barSales", "products"])
-  }, [token, selectedEventId, fetchData])
+
+    // Optimistic update
+    setData(prev => {
+      const nextProducts = [...prev.products]
+      for (const item of items) {
+        const idx = nextProducts.findIndex(p => p.id === item.productId)
+        if (idx !== -1) {
+          nextProducts[idx] = { ...nextProducts[idx], estoqueAtual: nextProducts[idx].estoqueAtual - item.quantidade }
+        }
+      }
+      return {
+        ...prev,
+        barSales: [...tempSales, ...prev.barSales],
+        products: nextProducts
+      }
+    })
+
+    try {
+      const res = await fetch(`${API_URL}/vendas-bar/bulk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify({
+          vendedor,
+          pessoa_id: pessoaId === "none" ? null : pessoaId,
+          items: items.map(i => ({
+            produto_id: i.productId,
+            quantidade: i.quantidade
+          }))
+        })
+      })
+      if (!res.ok) throw new Error("Erro bulk vendas")
+      fetchData(true, ["barSales", "products"])
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro registrar vendas")
+      fetchData(true, ["barSales", "products"])
+    }
+  }, [token, selectedEventId, fetchData, data.products])
 
   const updateBarSale = useCallback(async (id: string, s: Partial<BarSale>) => {
     const res = await fetch(`${API_URL}/vendas-bar/${id}`, {
@@ -650,17 +762,30 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [token, selectedEventId, fetchData])
 
   const removeBarSale = useCallback(async (id: string) => {
-    const res = await fetch(`${API_URL}/vendas-bar/${id}`, {
-      method: "DELETE",
-      headers: {
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      }
-    })
-    if (!res.ok) throw new Error("Erro remover venda")
-    fetchData(true, ["barSales", "products"])
-  }, [token, selectedEventId, fetchData])
+    // Optimistic update
+    const saleToRemove = data.barSales.find(s => s.id === id)
+    setData(prev => ({
+      ...prev,
+      barSales: prev.barSales.filter(x => x.id !== id),
+      products: saleToRemove ? prev.products.map(p => p.id === saleToRemove.productId ? { ...p, estoqueAtual: p.estoqueAtual + saleToRemove.quantidade } : p) : prev.products
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/vendas-bar/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        }
+      })
+      if (!res.ok) throw new Error("Erro remover venda")
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao remover venda")
+      fetchData(true, ["barSales", "products"])
+    }
+  }, [token, selectedEventId, fetchData, data.barSales, data.products])
 
   const addColaborador = useCallback(async (c: Omit<Colaborador, "id">) => {
     const res = await fetch(`${API_URL}/colaboradores`, {
@@ -736,59 +861,103 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [token, selectedEventId, fetchData])
 
   const addGarrafaToCamarote = useCallback(async (tableId: string, garrafa: string) => {
-    const res = await fetch(`${API_URL}/mesas-camarote/${tableId}/garrafas`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify({ garrafa })
-    })
-    if (!res.ok) throw new Error("Erro garrafa")
-    fetchData(true, ["camaroteTables"])
+    // Optimistic update
+    setData(prev => ({
+      ...prev,
+      camaroteTables: prev.camaroteTables.map(t => t.id === tableId ? { ...t, garrafas: [...t.garrafas, garrafa] } : t)
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/mesas-camarote/${tableId}/garrafas`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify({ garrafa })
+      })
+      if (!res.ok) throw new Error("Erro garrafa")
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao adicionar garrafa")
+      fetchData(true, ["camaroteTables"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const removeGarrafaFromCamarote = useCallback(async (tableId: string, index: number) => {
-    const res = await fetch(`${API_URL}/mesas-camarote/${tableId}/garrafas/${index}`, {
-      method: "DELETE",
-      headers: {
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      }
-    })
-    if (!res.ok) throw new Error("Erro remover garrafa")
-    fetchData(true, ["camaroteTables"])
+    // Optimistic update
+    setData(prev => ({
+      ...prev,
+      camaroteTables: prev.camaroteTables.map(t => t.id === tableId ? { ...t, garrafas: t.garrafas.filter((_, i) => i !== index) } : t)
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/mesas-camarote/${tableId}/garrafas/${index}`, {
+        method: "DELETE",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        }
+      })
+      if (!res.ok) throw new Error("Erro remover garrafa")
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao remover garrafa")
+      fetchData(true, ["camaroteTables"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const addPessoaToCamarote = useCallback(async (tableId: string, pessoaId: string) => {
-    const res = await fetch(`${API_URL}/mesas-camarote/${tableId}/pessoas`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify({ pessoa_id: pessoaId })
-    })
-    if (!res.ok) throw new Error("Erro pessoa mesa")
-    fetchData(true, ["camaroteTables"])
+    // Optimistic update
+    setData(prev => ({
+      ...prev,
+      camaroteTables: prev.camaroteTables.map(t => t.id === tableId ? { ...t, pessoaIds: [...t.pessoaIds, pessoaId] } : t)
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/mesas-camarote/${tableId}/pessoas`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify({ pessoa_id: pessoaId })
+      })
+      if (!res.ok) throw new Error("Erro pessoa mesa")
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao adicionar pessoa")
+      fetchData(true, ["camaroteTables"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const removePessoaFromCamarote = useCallback(async (tableId: string, pessoaId: string) => {
-    const res = await fetch(`${API_URL}/mesas-camarote/${tableId}/pessoas/${pessoaId}`, {
-      method: "DELETE",
-      headers: {
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      }
-    })
-    if (!res.ok) throw new Error("Erro remover pessoa mesa")
-    fetchData(true, ["pessoas"])
+    // Optimistic update
+    setData(prev => ({
+      ...prev,
+      camaroteTables: prev.camaroteTables.map(t => t.id === tableId ? { ...t, pessoaIds: t.pessoaIds.filter(pid => pid !== pessoaId) } : t)
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/mesas-camarote/${tableId}/pessoas/${pessoaId}`, {
+        method: "DELETE",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        }
+      })
+      if (!res.ok) throw new Error("Erro remover pessoa mesa")
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao remover pessoa")
+      fetchData(true, ["camaroteTables"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const setLotacaoMaxima = (n: number) => setData(prev => ({ ...prev, lotacaoMaxima: n }))

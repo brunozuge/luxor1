@@ -337,7 +337,16 @@ export function BarModule() {
                 salesByProduct.map(p => (
                   <TableRow key={p.id}>
                     <TableCell>{p.nome}</TableCell><TableCell>R$ {p.custo}</TableCell><TableCell>R$ {p.precoVenda}</TableCell><TableCell>{p.estoqueAtual}</TableCell>
-                    <TableCell><Button variant="ghost" size="icon" onClick={() => openEditProduct(p)}><Pencil className="h-4 w-4" /></Button></TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEditProduct(p)} className="h-8 w-8 text-muted-foreground hover:text-primary">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setConfirmDeleteId(p.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               }
@@ -352,7 +361,16 @@ export function BarModule() {
                 barSales.map(s => (
                   <TableRow key={s.id}>
                     <TableCell>{s.hora}</TableCell><TableCell>{products.find(p => p.id === s.productId)?.nome}</TableCell><TableCell>{pessoas.find(p => p.id === s.pessoaId)?.nome}</TableCell><TableCell>R$ {s.valorTotal}</TableCell>
-                    <TableCell><Button variant="ghost" size="icon" onClick={() => openEditSale(s)}><Pencil className="h-4 w-4" /></Button></TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEditSale(s)} className="h-8 w-8 text-muted-foreground hover:text-primary">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setConfirmDeleteSaleId(s.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               }
@@ -361,7 +379,8 @@ export function BarModule() {
         </TabsContent>
         <TabsContent value="ranking"><BarRanking /></TabsContent>
       </Tabs>
-      <ConfirmDialog open={confirmDeleteId !== null} onOpenChange={() => setConfirmDeleteId(null)} onConfirm={() => { removeProduct(confirmDeleteId!); setConfirmDeleteId(null) }} title="Excluir" description="Tem certeza?" />
+      <ConfirmDialog open={confirmDeleteId !== null} onOpenChange={() => setConfirmDeleteId(null)} onConfirm={() => { removeProduct(confirmDeleteId!); setConfirmDeleteId(null) }} title="Excluir Produto" description="Tem certeza que deseja remover este produto? Isso pode afetar o historico de vendas." />
+      <ConfirmDialog open={confirmDeleteSaleId !== null} onOpenChange={() => setConfirmDeleteSaleId(null)} onConfirm={handleDeleteSale} title="Excluir Venda" description="Tem certeza que deseja remover este registro de venda?" />
     </div>
   )
 }
