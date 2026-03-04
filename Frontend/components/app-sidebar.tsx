@@ -10,6 +10,8 @@ import {
   UserCog,
   User,
   LogOut,
+  ChevronDown,
+  Plus,
 } from "lucide-react"
 import {
   Sidebar,
@@ -28,6 +30,14 @@ import { useEventData } from "@/lib/event-data"
 import { useAuth } from "@/lib/auth-context"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { useState } from "react"
+import { CreateEventModal } from "@/components/create-event-modal"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
@@ -45,24 +55,55 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
-  const { pessoasDentro, lotacaoMaxima } = useEventData()
+  const { pessoasDentro, lotacaoMaxima, eventos, selectedEventId, setSelectedEventId, currentEvento } = useEventData()
   const { user, logout } = useAuth()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+
   const percentage = Math.round((pessoasDentro / lotacaoMaxima) * 100)
   const isNearCapacity = percentage >= 80
 
   return (
     <Sidebar>
-      <SidebarHeader className="px-4 py-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-            <Crown className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-sidebar-foreground">EventPro</h2>
-            <p className="text-xs text-muted-foreground">Gestao de Eventos</p>
-          </div>
-        </div>
+      <SidebarHeader className="px-4 py-4">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Crown className="size-4" />
+              </div>
+              <div className="flex flex-col gap-0.5 leading-none overflow-hidden">
+                <span className="font-semibold truncate">{currentEvento?.nome || "Selecione o Evento"}</span>
+                <span className="text-xs text-muted-foreground truncate">EventPro • Gerenciar</span>
+              </div>
+              <ChevronDown className="ml-auto size-4 opacity-50" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg" align="start" side="bottom" sideOffset={4}>
+            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Meus Eventos</div>
+            {eventos.map((evento) => (
+              <DropdownMenuItem
+                key={evento.id}
+                className="gap-2 cursor-pointer"
+                onClick={() => setSelectedEventId(evento.id)}
+              >
+                <div
+                  className="size-4 rounded-full border border-border"
+                  style={{ backgroundColor: evento.cor_primaria }}
+                />
+                <span className={selectedEventId === evento.id ? "font-bold" : ""}>{evento.nome}</span>
+                {selectedEventId === evento.id && <div className="ml-auto size-1.5 rounded-full bg-primary" />}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setShowCreateModal(true)}>
+              <div className="flex size-6 items-center justify-center rounded-md border bg-background">
+                <Plus className="size-4" />
+              </div>
+              <span className="font-medium">Criar Evento</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SidebarHeader>
       <SidebarSeparator />
       <SidebarContent>
@@ -149,6 +190,8 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
         confirmText="Sair"
         variant="destructive"
       />
+
+      <CreateEventModal open={showCreateModal} onOpenChange={setShowCreateModal} />
     </Sidebar>
   )
 }

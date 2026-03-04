@@ -4,14 +4,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+use App\Traits\BelongsToEvento;
+
 class MesaCamarote extends Model
 {
+    use BelongsToEvento;
+
     protected $table = 'mesas_camarote';
 
     protected $fillable = [
         'nome',
         'garcom',
         'garrafas',
+        'evento_id',
     ];
 
     protected $casts = [

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ColaboradorController;
+use App\Http\Controllers\Api\EventoController;
 use App\Http\Controllers\Api\IngressoController;
 use App\Http\Controllers\Api\MesaCamaroteController;
 use App\Http\Controllers\Api\PessoaController;
@@ -16,6 +17,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('me', [AuthController::class, 'me']);
+
+        // Eventos
+        Route::apiResource('eventos', EventoController::class);
 
         // Pessoas
         Route::apiResource('pessoas', PessoaController::class);

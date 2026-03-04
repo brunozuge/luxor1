@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Crown, Wine, UserPlus, X, Trophy, Pencil } from "lucide-react"
+import { Plus, Crown, Wine, UserPlus, X, Trophy, Pencil, DollarSign } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function CamaroteModule() {
   const {
@@ -39,6 +40,7 @@ export function CamaroteModule() {
     removeGarrafaFromCamarote,
     colaboradores,
     products,
+    loading,
   } = useEventData()
 
   const [tableDialogOpen, setTableDialogOpen] = useState(false)
@@ -207,178 +209,208 @@ export function CamaroteModule() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Mesas Ativas</CardTitle>
-            <Crown className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{camaroteTables.length}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Garrafas</CardTitle>
-            <Wine className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalGarrafas}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Consumo Total</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success">
-              R$ {totalCamaroteRevenue.toLocaleString("pt-BR")}
-            </div>
-          </CardContent>
-        </Card>
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="bg-card border-border">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              {loading && camaroteTables.length === 0 ? (
+                <>
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-4" />
+                </>
+              ) : i === 1 ? (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Mesas</CardTitle>
+                  <Crown className="h-4 w-4 text-primary" />
+                </>
+              ) : i === 2 ? (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Garrafas</CardTitle>
+                  <Wine className="h-4 w-4 text-secondary" />
+                </>
+              ) : (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Consumo</CardTitle>
+                  <DollarSign className="h-4 w-4 text-success" />
+                </>
+              )}
+            </CardHeader>
+            <CardContent>
+              {loading && camaroteTables.length === 0 ? (
+                <Skeleton className="h-8 w-20" />
+              ) : i === 1 ? (
+                <div className="text-2xl font-bold">{camaroteTables.length}</div>
+              ) : i === 2 ? (
+                <div className="text-2xl font-bold">{totalGarrafas}</div>
+              ) : (
+                <div className="text-2xl font-bold text-success">
+                  R$ {totalCamaroteRevenue.toLocaleString("pt-BR")}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {camaroteTables.map((table) => {
-          const tableSpend = getTableSpending(table.id)
-          return (
-            <Card key={table.id} className="bg-card border-border">
+        {loading && camaroteTables.length === 0 ? (
+          [1, 2, 3, 4].map((i) => (
+            <Card key={i} className="bg-card border-border">
               <CardHeader className="flex flex-row items-start justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Crown className="h-4 w-4 text-primary" />
-                    {table.nome}
-                  </CardTitle>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-sm text-muted-foreground">
-                      Garcom: {table.garcom || "Nao definido"}
-                    </p>
-                    {table.garcom && (
-                      <button
-                        type="button"
-                        onClick={() => updateCamaroteTable(table.id, { garcom: "" })}
-                        className="text-muted-foreground hover:text-destructive transition-colors"
-                        title="Remover garcom"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
-                  </div>
+                <div className="flex-1">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-4 w-24 mt-2" />
                 </div>
-                <Badge className="bg-primary text-primary-foreground">
-                  R$ {tableSpend.toLocaleString("pt-BR")}
-                </Badge>
-                <Button variant="ghost" size="icon" className="h-8 w-8 ml-2" onClick={() => openEditTable(table)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                <Skeleton className="h-6 w-20 rounded-full" />
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
-                {/* Pessoas na mesa */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-sm font-semibold text-muted-foreground">Pessoas</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTableId(table.id)
-                        setAddPersonDialogOpen(true)
-                      }}
-                      className="h-7 text-xs"
-                    >
-                      <UserPlus className="mr-1 h-3 w-3" />
-                      Adicionar
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {table.pessoaIds.map((pid) => {
-                      const pessoa = pessoas.find((p) => p.id === pid)
-                      return (
-                        <Badge
-                          key={pid}
-                          variant="outline"
-                          className="border-border flex items-center gap-1"
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          camaroteTables.map((table) => {
+            const tableSpend = getTableSpending(table.id)
+            return (
+              <Card key={table.id} className="bg-card border-border">
+                <CardHeader className="flex flex-row items-start justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Crown className="h-4 w-4 text-primary" />
+                      {table.nome}
+                    </CardTitle>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-sm text-muted-foreground">
+                        Garcom: {table.garcom || "Nao definido"}
+                      </p>
+                      {table.garcom && (
+                        <button
+                          type="button"
+                          onClick={() => updateCamaroteTable(table.id, { garcom: "" })}
+                          className="text-muted-foreground hover:text-destructive transition-colors"
+                          title="Remover garcom"
                         >
-                          {pessoa?.nome || "-"}
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <Badge className="bg-primary text-primary-foreground">
+                    R$ {tableSpend.toLocaleString("pt-BR")}
+                  </Badge>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 ml-2" onClick={() => openEditTable(table)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                  {/* Pessoas na mesa */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-muted-foreground">Pessoas</h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTableId(table.id)
+                          setAddPersonDialogOpen(true)
+                        }}
+                        className="h-7 text-xs"
+                      >
+                        <UserPlus className="mr-1 h-3 w-3" />
+                        Adicionar
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {table.pessoaIds.map((pid) => {
+                        const pessoa = pessoas.find((p) => p.id === pid)
+                        return (
+                          <Badge
+                            key={pid}
+                            variant="outline"
+                            className="border-border flex items-center gap-1"
+                          >
+                            {pessoa?.nome || "-"}
+                            <button
+                              type="button"
+                              onClick={() => removePessoaFromCamarote(table.id, pid)}
+                              className="ml-1 hover:text-destructive"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        )
+                      })}
+                      {table.pessoaIds.length === 0 && (
+                        <span className="text-xs text-muted-foreground">Nenhuma pessoa</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Garrafas */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-muted-foreground">Garrafas</h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTableId(table.id)
+                          setGarrafaDialogOpen(true)
+                        }}
+                        className="h-7 text-xs"
+                      >
+                        <Wine className="mr-1 h-3 w-3" />
+                        Adicionar
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {table.garrafas.map((g, i) => (
+                        <Badge key={`${g}-${i}`} className="bg-secondary text-secondary-foreground flex items-center gap-1">
+                          {g}
                           <button
                             type="button"
-                            onClick={() => removePessoaFromCamarote(table.id, pid)}
+                            onClick={() => removeGarrafaFromCamarote(table.id, i)}
                             className="ml-1 hover:text-destructive"
                           >
                             <X className="h-3 w-3" />
                           </button>
                         </Badge>
-                      )
-                    })}
-                    {table.pessoaIds.length === 0 && (
-                      <span className="text-xs text-muted-foreground">Nenhuma pessoa</span>
-                    )}
+                      ))}
+                      {table.garrafas.length === 0 && (
+                        <span className="text-xs text-muted-foreground">Nenhuma garrafa</span>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Garrafas */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-sm font-semibold text-muted-foreground">Garrafas</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTableId(table.id)
-                        setGarrafaDialogOpen(true)
-                      }}
-                      className="h-7 text-xs"
-                    >
-                      <Wine className="mr-1 h-3 w-3" />
-                      Adicionar
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {table.garrafas.map((g, i) => (
-                      <Badge key={`${g}-${i}`} className="bg-secondary text-secondary-foreground flex items-center gap-1">
-                        {g}
-                        <button
-                          type="button"
-                          onClick={() => removeGarrafaFromCamarote(table.id, i)}
-                          className="ml-1 hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                    {table.garrafas.length === 0 && (
-                      <span className="text-xs text-muted-foreground">Nenhuma garrafa</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Historico de Consumo */}
-                <div className="mt-2 border-t border-border pt-4">
-                  <h4 className="text-sm font-semibold text-muted-foreground mb-3">Consumo Recente</h4>
-                  <div className="flex flex-col gap-2 max-h-[150px] overflow-y-auto pr-2">
-                    {table.pessoaIds.flatMap(pid =>
-                      barSales.filter(s => s.pessoaId === pid)
-                    ).sort((a, b) => b.hora.localeCompare(a.hora)).slice(0, 5).map(sale => {
-                      const prod = products.find(p => p.id === sale.productId)
-                      const cli = pessoas.find(p => p.id === sale.pessoaId)
-                      return (
-                        <div key={sale.id} className="flex items-center justify-between text-xs bg-muted/30 p-2 rounded">
-                          <div className="flex flex-col">
-                            <span className="font-medium">{sale.quantidade}x {prod?.nome || "Item"}</span>
-                            <span className="text-[10px] text-muted-foreground">{cli?.nome || "Desconhecido"} • {sale.hora}</span>
+                  {/* Historico de Consumo */}
+                  <div className="mt-2 border-t border-border pt-4">
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3">Consumo Recente</h4>
+                    <div className="flex flex-col gap-2 max-h-[150px] overflow-y-auto pr-2">
+                      {table.pessoaIds.flatMap(pid =>
+                        barSales.filter(s => s.pessoaId === pid)
+                      ).sort((a, b) => b.hora.localeCompare(a.hora)).slice(0, 5).map(sale => {
+                        const prod = products.find(p => p.id === sale.productId)
+                        const cli = pessoas.find(p => p.id === sale.pessoaId)
+                        return (
+                          <div key={sale.id} className="flex items-center justify-between text-xs bg-muted/30 p-2 rounded">
+                            <div className="flex flex-col">
+                              <span className="font-medium">{sale.quantidade}x {prod?.nome || "Item"}</span>
+                              <span className="text-[10px] text-muted-foreground">{cli?.nome || "Desconhecido"} • {sale.hora}</span>
+                            </div>
+                            <span className="font-bold">R$ {sale.valorTotal.toLocaleString("pt-BR")}</span>
                           </div>
-                          <span className="font-bold">R$ {sale.valorTotal.toLocaleString("pt-BR")}</span>
-                        </div>
-                      )
-                    })}
-                    {table.pessoaIds.length === 0 && (
-                      <span className="text-xs text-muted-foreground italic">Mesa vazia</span>
-                    )}
+                        )
+                      })}
+                      {table.pessoaIds.length === 0 && (
+                        <span className="text-xs text-muted-foreground italic">Mesa vazia</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
+                </CardContent>
+              </Card>
+            )
+          })
+        )}
       </div>
 
       {/* Ranking */}

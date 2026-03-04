@@ -47,6 +47,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Search, Ticket, DollarSign, CheckCircle2, Clock } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const paymentLabels: Record<PaymentMethod, string> = {
   dinheiro: "Dinheiro",
@@ -56,7 +57,7 @@ const paymentLabels: Record<PaymentMethod, string> = {
 }
 
 export function IngressosModule() {
-  const { tickets, pessoas, addTicket, colaboradores } = useEventData()
+  const { tickets, pessoas, addTicket, colaboradores, loading } = useEventData()
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
@@ -66,6 +67,7 @@ export function IngressosModule() {
     valorPago: "",
     vendedor: "",
     formaPagamento: "dinheiro" as PaymentMethod,
+    pessoaId: "",
   })
   const filtered = tickets.filter((t) => t.numero.includes(search))
 
@@ -81,7 +83,8 @@ export function IngressosModule() {
       lote: !form.lote,
       valorPago: !form.valorPago,
       vendedor: !form.vendedor,
-      formaPagamento: !form.formaPagamento
+      formaPagamento: !form.formaPagamento,
+      pessoaId: !form.pessoaId
     }
     setErrors(newErrors)
 
@@ -99,8 +102,9 @@ export function IngressosModule() {
       valorPago: parseCurrency(form.valorPago),
       vendedor: form.vendedor,
       formaPagamento: form.formaPagamento,
+      pessoaId: form.pessoaId,
     })
-    setForm({ numero: "", lote: "1", valorPago: "", vendedor: "", formaPagamento: "dinheiro" })
+    setForm({ numero: "", lote: "1", valorPago: "", vendedor: "", formaPagamento: "dinheiro", pessoaId: "" })
     setDialogOpen(false)
   }
 
@@ -117,7 +121,7 @@ export function IngressosModule() {
           setDialogOpen(v)
           if (!v) {
             setErrors({})
-            setForm({ numero: "", lote: "1", valorPago: "", vendedor: "", formaPagamento: "dinheiro" })
+            setForm({ numero: "", lote: "1", valorPago: "", vendedor: "", formaPagamento: "dinheiro", pessoaId: "" })
           }
         }}>
           <DialogTrigger asChild>
@@ -131,6 +135,27 @@ export function IngressosModule() {
               <DialogTitle>Registrar Ingresso</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <Label>Pessoa *</Label>
+                <Select
+                  value={form.pessoaId}
+                  onValueChange={(v) => {
+                    setForm({ ...form, pessoaId: v })
+                    if (errors.pessoaId) setErrors(prev => ({ ...prev, pessoaId: false }))
+                  }}
+                >
+                  <SelectTrigger className={errors.pessoaId ? "border-destructive focus-visible:ring-destructive" : ""}>
+                    <SelectValue placeholder="Selecione a pessoa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pessoas.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="num">Numero *</Label>
@@ -187,7 +212,7 @@ export function IngressosModule() {
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      {colaboradores.filter(c => c.cargo === "promoter" || c.cargo === "caixa").map((c) => (
+                      {colaboradores.map((c) => (
                         <SelectItem key={c.id} value={c.nome}>
                           {c.nome}
                         </SelectItem>
@@ -224,44 +249,53 @@ export function IngressosModule() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Ingressos</CardTitle>
-            <Ticket className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{tickets.length}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Arrecadado</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success">
-              R$ {totalArrecadado.toLocaleString("pt-BR")}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Entraram</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-success" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalEntrou}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
-            <Clock className="h-4 w-4 text-warning" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-warning">{totalPendente}</div>
-          </CardContent>
-        </Card>
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="bg-card border-border">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              {loading && tickets.length === 0 ? (
+                <>
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-4" />
+                </>
+              ) : i === 1 ? (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Ingressos</CardTitle>
+                  <Ticket className="h-4 w-4 text-primary" />
+                </>
+              ) : i === 2 ? (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Arrecadado</CardTitle>
+                  <DollarSign className="h-4 w-4 text-success" />
+                </>
+              ) : i === 3 ? (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Entradas Confirmadas</CardTitle>
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                </>
+              ) : (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Entradas Pendentes</CardTitle>
+                  <Clock className="h-4 w-4 text-warning" />
+                </>
+              )}
+            </CardHeader>
+            <CardContent>
+              {loading && tickets.length === 0 ? (
+                <Skeleton className="h-8 w-16" />
+              ) : i === 1 ? (
+                <div className="text-2xl font-bold">{tickets.length}</div>
+              ) : i === 2 ? (
+                <div className="text-2xl font-bold text-success">
+                  R$ {totalArrecadado.toLocaleString("pt-BR")}
+                </div>
+              ) : i === 3 ? (
+                <div className="text-2xl font-bold">{totalEntrou}</div>
+              ) : (
+                <div className="text-2xl font-bold text-warning">{totalPendente}</div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="relative">
@@ -288,29 +322,42 @@ export function IngressosModule() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((t) => {
-                return (
-                  <TableRow key={t.id} className="border-border">
-                    <TableCell className="font-mono font-bold">#{t.numero}</TableCell>
-                    <TableCell className="text-muted-foreground">{t.lote}</TableCell>
-                    <TableCell>R$ {t.valorPago.toLocaleString("pt-BR")}</TableCell>
-                    <TableCell className="text-muted-foreground">{t.vendedor}</TableCell>
-                    <TableCell className="text-muted-foreground">{paymentLabels[t.formaPagamento]}</TableCell>
-                    <TableCell>
-                      {t.entrou ? (
-                        <Badge className="bg-success text-success-foreground">
-                          Entrou {t.horaEntrada}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="border-warning text-warning">
-                          Pendente
-                        </Badge>
-                      )}
-                    </TableCell>
+              {loading && tickets.length === 0 ? (
+                [1, 2, 3, 4, 5].map((i) => (
+                  <TableRow key={i} className="border-border">
+                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24 rounded-full" /></TableCell>
                   </TableRow>
-                )
-              })}
-              {filtered.length === 0 && (
+                ))
+              ) : (
+                filtered.map((t) => {
+                  return (
+                    <TableRow key={t.id} className="border-border">
+                      <TableCell className="font-mono font-bold">#{t.numero}</TableCell>
+                      <TableCell className="text-muted-foreground">{t.lote}</TableCell>
+                      <TableCell>R$ {t.valorPago.toLocaleString("pt-BR")}</TableCell>
+                      <TableCell className="text-muted-foreground">{t.vendedor}</TableCell>
+                      <TableCell className="text-muted-foreground">{paymentLabels[t.formaPagamento]}</TableCell>
+                      <TableCell>
+                        {t.entrou ? (
+                          <Badge className="bg-success text-success-foreground">
+                            Entrou {t.horaEntrada}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-warning text-warning">
+                            Pendente
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+              {!loading && filtered.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Nenhum ingresso encontrado

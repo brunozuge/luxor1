@@ -4,8 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+use App\Traits\BelongsToEvento;
+
 class Colaborador extends Model
 {
+    use BelongsToEvento;
+
     protected $table = 'colaboradores';
 
     protected $fillable = [
@@ -13,5 +17,6 @@ class Colaborador extends Model
         'cargo',
         'telefone',
         'ativo',
+        'evento_id',
     ];
 }

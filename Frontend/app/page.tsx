@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { EventDataProvider } from "@/lib/event-data"
+import { useState, useEffect } from "react"
+import { EventDataProvider, useEventData } from "@/lib/event-data"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -26,6 +26,31 @@ const sectionTitles: Record<string, string> = {
   colaboradores: "Colaboradores",
 }
 
+function DataFetcher({ activeSection }: { activeSection: string }) {
+  const { fetchData, fetchedModules } = useEventData()
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Only trigger on section change
+  useEffect(() => {
+    const sectionModules: Record<string, any[]> = {
+      dashboard: ["pessoas", "tickets", "products", "barSales", "colaboradores", "camaroteTables"],
+      pessoas: ["pessoas"],
+      ingressos: ["ingressos", "pessoas", "colaboradores"],
+      portaria: ["ingressos", "pessoas"],
+      bar: ["barSales", "products", "colaboradores"],
+      camarote: ["camaroteTables", "pessoas"],
+      colaboradores: ["colaboradores"],
+    }
+
+    const modules = sectionModules[activeSection] || []
+    // @ts-ignore
+    const needsLoading = modules.some(m => !fetchedModules.has(m))
+
+    fetchData(!needsLoading, modules as any)
+  }, [activeSection, fetchData])
+
+  return null
+}
+
 function AppContent() {
   const [activeSection, setActiveSection] = useState("dashboard")
   const { isAuthenticated, loading } = useAuth()
@@ -44,6 +69,7 @@ function AppContent() {
 
   return (
     <EventDataProvider>
+      <DataFetcher activeSection={activeSection} />
       <SidebarProvider>
         <AppSidebar activeSection={activeSection} onNavigate={setActiveSection} />
         <SidebarInset>

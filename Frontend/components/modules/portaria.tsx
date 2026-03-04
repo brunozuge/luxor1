@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { DoorOpen, AlertTriangle, UserCheck, Search, ShieldAlert } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const wristbandLabels: Record<WristbandColor, string> = {
   maior: "Maior de Idade",
@@ -35,7 +36,7 @@ function calcAge(dataNascimento: string) {
 }
 
 export function PortariaModule() {
-  const { tickets, pessoas, pessoasDentro, lotacaoMaxima, marcarEntrada } = useEventData()
+  const { tickets, pessoas, pessoasDentro, lotacaoMaxima, marcarEntrada, loading } = useEventData()
   const [searchTicket, setSearchTicket] = useState("")
   const [selectedWristband, setSelectedWristband] = useState<WristbandColor>("maior")
   const [lastEntry, setLastEntry] = useState<{ nome: string; hora: string } | null>(null)
@@ -96,52 +97,74 @@ export function PortariaModule() {
       )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Dentro do Evento</CardTitle>
-            <DoorOpen className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold tabular-nums">{pessoasDentro}</div>
-            <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-secondary">
-              <div
-                className={`h-full rounded-full transition-all ${isNearCapacity ? "bg-destructive" : "bg-primary"
-                  }`}
-                style={{ width: `${Math.min(percentage, 100)}%` }}
-              />
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {percentage}% de {lotacaoMaxima}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-warning tabular-nums">
-              {tickets.filter((t) => !t.entrou).length}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">ingressos nao utilizados</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Ultima Entrada</CardTitle>
-            <UserCheck className="h-4 w-4 text-success" />
-          </CardHeader>
-          <CardContent>
-            {lastEntry ? (
-              <>
-                <div className="text-lg font-bold">{lastEntry.nome}</div>
-                <p className="text-sm text-muted-foreground">{lastEntry.hora}</p>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">Nenhuma entrada registrada</p>
-            )}
-          </CardContent>
-        </Card>
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="bg-card border-border">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              {loading && tickets.length === 0 ? (
+                <>
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-4 rounded-full" />
+                </>
+              ) : i === 1 ? (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Pessoas Dentro</CardTitle>
+                  <DoorOpen className="h-4 w-4 text-primary" />
+                </>
+              ) : i === 2 ? (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
+                  <UserCheck className="h-4 w-4 text-warning" />
+                </>
+              ) : (
+                <>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Ultima Entrada</CardTitle>
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                </>
+              )}
+            </CardHeader>
+            <CardContent>
+              {loading && tickets.length === 0 ? (
+                <>
+                  <Skeleton className="h-10 w-20" />
+                  <Skeleton className="mt-2 h-2 w-full" />
+                  <Skeleton className="mt-2 h-3 w-32" />
+                </>
+              ) : i === 1 ? (
+                <>
+                  <div className="text-4xl font-bold tabular-nums">{pessoasDentro}</div>
+                  <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className={`h-full rounded-full transition-all ${isNearCapacity ? "bg-destructive" : "bg-primary"
+                        }`}
+                      style={{ width: `${Math.min(percentage, 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {percentage}% de {lotacaoMaxima}
+                  </p>
+                </>
+              ) : i === 2 ? (
+                <>
+                  <div className="text-4xl font-bold text-warning tabular-nums">
+                    {tickets.filter((t) => !t.entrou).length}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">ingressos nao utilizados</p>
+                </>
+              ) : (
+                <>
+                  {lastEntry ? (
+                    <>
+                      <div className="text-lg font-bold">{lastEntry.nome}</div>
+                      <p className="text-sm text-muted-foreground">{lastEntry.hora}</p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Nenhuma entrada registrada</p>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Card className="bg-card border-border">
