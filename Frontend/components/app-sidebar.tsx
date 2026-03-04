@@ -55,13 +55,49 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
-  const { pessoasDentro, lotacaoMaxima, eventos, selectedEventId, setSelectedEventId, currentEvento } = useEventData()
+  const { pessoasDentro, lotacaoMaxima, eventos, selectedEventId, setSelectedEventId, currentEvento, loading } = useEventData()
   const { user, logout } = useAuth()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
 
   const percentage = Math.round((pessoasDentro / lotacaoMaxima) * 100)
   const isNearCapacity = percentage >= 80
+
+  if (loading && eventos.length === 0) {
+    return (
+      <Sidebar>
+        <SidebarHeader className="px-4 py-4">
+          <div className="flex items-center gap-3">
+            <div className="size-8 rounded-lg bg-muted animate-pulse" />
+            <div className="flex flex-col gap-2">
+              <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+              <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+            </div>
+          </div>
+        </SidebarHeader>
+        <SidebarSeparator />
+        <SidebarContent>
+          <div className="p-4 space-y-4">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="size-4 rounded bg-muted animate-pulse" />
+                <div className="h-4 w-full bg-muted animate-pulse rounded" />
+              </div>
+            ))}
+          </div>
+        </SidebarContent>
+        <SidebarFooter className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="size-8 rounded-full bg-muted animate-pulse" />
+            <div className="flex flex-col gap-2">
+              <div className="h-4 w-20 bg-muted animate-pulse rounded" />
+              <div className="h-3 w-32 bg-muted animate-pulse rounded" />
+            </div>
+          </div>
+        </SidebarFooter>
+      </Sidebar>
+    )
+  }
 
   return (
     <Sidebar>

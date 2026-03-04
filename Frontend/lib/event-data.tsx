@@ -205,6 +205,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
 
   const refreshEventos = useCallback(async () => {
     if (!token) return
+    setLoading(true)
     try {
       const res = await fetch(`${API_URL}/eventos`, {
         headers: {
@@ -224,11 +225,16 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           logo: e.logo
         }))
       }))
-      if (!selectedEventId && eventos.length > 0) {
-        setSelectedEventId(String(eventos[0].id))
+      if (eventos.length > 0) {
+        const isValid = eventos.some((e: any) => String(e.id) === String(selectedEventId))
+        if (!selectedEventId || !isValid) {
+          setSelectedEventId(String(eventos[0].id))
+        }
       }
     } catch (err) {
       console.error(err)
+    } finally {
+      setLoading(false)
     }
   }, [token, selectedEventId])
 

@@ -15,6 +15,7 @@ import { CamaroteModule } from "@/components/modules/camarote"
 import { ColaboradoresModule } from "@/components/modules/colaboradores"
 import { Login } from "@/components/login"
 import { Loader2 } from "lucide-react"
+import { EventSwitcher } from "@/components/event-switcher"
 
 const sectionTitles: Record<string, string> = {
   dashboard: "Dashboard",
@@ -76,7 +77,9 @@ function AppContent() {
           <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b border-border bg-background/80 px-4 backdrop-blur-sm">
             <SidebarTrigger />
             <Separator orientation="vertical" className="h-6" />
-            <h2 className="text-sm font-semibold">{sectionTitles[activeSection]}</h2>
+            <EventSwitcher />
+            <Separator orientation="vertical" className="h-6 ml-auto md:hidden" />
+            <h2 className="text-sm font-semibold ml-auto hidden md:block">{sectionTitles[activeSection]}</h2>
           </header>
           <div className="flex-1 p-4 md:p-6">
             {activeSection === "dashboard" && <DashboardModule />}
