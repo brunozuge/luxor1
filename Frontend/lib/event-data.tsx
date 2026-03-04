@@ -423,49 +423,77 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [token, selectedEventId])
 
   const addPessoa = useCallback(async (p: Omit<Person, "id" | "createdAt">) => {
-    const res = await fetch(`${API_URL}/pessoas`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify({
-        nome: p.nome,
-        instagram: p.instagram,
-        cpf_rg: p.cpfRg.replace(/\D/g, ""),
-        data_nascimento: p.dataNascimento,
-        tipo_ingresso: p.tipoIngresso,
-        observacao: p.observacao
+    const tempId = `temp-${Date.now()}`
+    const optimisticPerson: Person = { ...p, id: tempId, createdAt: new Date().toISOString() }
+
+    setData(prev => ({ ...prev, pessoas: [optimisticPerson, ...prev.pessoas] }))
+
+    try {
+      const res = await fetch(`${API_URL}/pessoas`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify({
+          nome: p.nome,
+          instagram: p.instagram,
+          cpf_rg: p.cpfRg.replace(/\D/g, ""),
+          data_nascimento: p.dataNascimento,
+          tipo_ingresso: p.tipoIngresso,
+          observacao: p.observacao
+        })
       })
-    })
-    if (!res.ok) throw new Error("Erro ao cadastrar pessoa")
-    const newItem = await res.json()
-    fetchData(true, ["pessoas"])
-    return String(newItem.id)
+      if (!res.ok) throw new Error("Erro ao cadastrar pessoa")
+      const newItem = await res.json()
+
+      setData(prev => ({
+        ...prev,
+        pessoas: prev.pessoas.map(per => per.id === tempId ? { ...per, id: String(newItem.id) } : per)
+      }))
+      return String(newItem.id)
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao cadastrar pessoa")
+      fetchData(true, ["pessoas"])
+      return ""
+    }
   }, [token, selectedEventId, fetchData])
 
   const updatePessoa = useCallback(async (id: string, p: Partial<Person>) => {
-    const res = await fetch(`${API_URL}/pessoas/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify({
-        nome: p.nome,
-        instagram: p.instagram,
-        cpf_rg: p.cpfRg?.replace(/\D/g, ""),
-        data_nascimento: p.dataNascimento,
-        tipo_ingresso: p.tipoIngresso,
-        observacao: p.observacao
+    // Optimistic update
+    setData(prev => ({
+      ...prev,
+      pessoas: prev.pessoas.map(x => x.id === id ? { ...x, ...p } : x)
+    }))
+
+    const body: any = {}
+    if (p.nome !== undefined) body.nome = p.nome
+    if (p.instagram !== undefined) body.instagram = p.instagram
+    if (p.cpfRg !== undefined) body.cpf_rg = p.cpfRg.replace(/\D/g, "")
+    if (p.dataNascimento !== undefined) body.data_nascimento = p.dataNascimento
+    if (p.tipoIngresso !== undefined) body.tipo_ingresso = p.tipoIngresso
+    if (p.observacao !== undefined) body.observacao = p.observacao
+
+    try {
+      const res = await fetch(`${API_URL}/pessoas/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify(body)
       })
-    })
-    if (!res.ok) throw new Error("Erro ao atualizar pessoa")
-    fetchData(true, ["pessoas"])
+      if (!res.ok) throw new Error("Erro ao atualizar pessoa")
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao atualizar pessoa")
+      fetchData(true, ["pessoas"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const removePessoa = useCallback(async (id: string) => {
@@ -557,60 +585,108 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [token, selectedEventId, fetchData])
 
   const addProduct = useCallback(async (p: Omit<Product, "id" | "estoqueAtual">) => {
-    const res = await fetch(`${API_URL}/produtos`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify({
-        nome: p.nome,
-        custo: p.custo,
-        preco_venda: p.precoVenda,
-        estoque_inicial: p.estoqueInicial
-      })
-    })
-    if (!res.ok) throw new Error("Erro produto")
-    fetchData(true, ["products"])
-  }, [token, selectedEventId, fetchData])
+    const tempId = `temp-${Date.now()}`
+    const optimisticProduct: Product = { ...p, id: tempId, estoqueAtual: p.estoqueInicial }
 
-  const addProducts = useCallback(async (ps: Omit<Product, "id" | "estoqueAtual">[]) => {
-    const res = await fetch(`${API_URL}/produtos/bulk`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify({
-        products: ps.map(p => ({
+    setData(prev => ({ ...prev, products: [...prev.products, optimisticProduct] }))
+
+    try {
+      const res = await fetch(`${API_URL}/produtos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify({
           nome: p.nome,
           custo: p.custo,
           preco_venda: p.precoVenda,
           estoque_inicial: p.estoqueInicial
-        }))
+        })
       })
-    })
-    if (!res.ok) throw new Error("Erro bulk produtos")
-    fetchData(true, ["products"])
+      if (!res.ok) throw new Error("Erro produto")
+      const realProduct = await res.json()
+
+      setData(prev => ({
+        ...prev,
+        products: prev.products.map(prod => prod.id === tempId ? { ...prod, id: String(realProduct.id) } : prod)
+      }))
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao criar produto")
+      fetchData(true, ["products"])
+    }
+  }, [token, selectedEventId, fetchData])
+
+  const addProducts = useCallback(async (ps: Omit<Product, "id" | "estoqueAtual">[]) => {
+    const tempProducts: Product[] = ps.map((p, idx) => ({
+      ...p,
+      id: `temp-bulk-${Date.now()}-${idx}`,
+      estoqueAtual: p.estoqueInicial
+    }))
+
+    setData(prev => ({ ...prev, products: [...prev.products, ...tempProducts] }))
+
+    try {
+      const res = await fetch(`${API_URL}/produtos/bulk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify({
+          products: ps.map(p => ({
+            nome: p.nome,
+            custo: p.custo,
+            preco_venda: p.precoVenda,
+            estoque_inicial: p.estoqueInicial
+          }))
+        })
+      })
+      if (!res.ok) throw new Error("Erro bulk produtos")
+      fetchData(true, ["products"])
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao criar produtos")
+      fetchData(true, ["products"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const updateProduct = useCallback(async (id: string, p: Partial<Product>) => {
-    const res = await fetch(`${API_URL}/produtos/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify(p)
-    })
-    if (!res.ok) throw new Error("Erro atualizar produto")
-    fetchData(true, ["products"])
+    // Optimistic update
+    setData(prev => ({
+      ...prev,
+      products: prev.products.map(x => x.id === id ? { ...x, ...p } : x)
+    }))
+
+    const body: any = {}
+    if (p.nome !== undefined) body.nome = p.nome
+    if (p.custo !== undefined) body.custo = p.custo
+    if (p.precoVenda !== undefined) body.preco_venda = p.precoVenda
+    if (p.estoqueInicial !== undefined) body.estoque_inicial = p.estoqueInicial
+    if (p.estoqueAtual !== undefined) body.estoque_atual = p.estoqueAtual
+
+    try {
+      const res = await fetch(`${API_URL}/produtos/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify(body)
+      })
+      if (!res.ok) throw new Error("Erro atualizar produto")
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao atualizar produto")
+      fetchData(true, ["products"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const removeProduct = useCallback(async (id: string) => {
@@ -788,76 +864,133 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [token, selectedEventId, fetchData, data.barSales, data.products])
 
   const addColaborador = useCallback(async (c: Omit<Colaborador, "id">) => {
-    const res = await fetch(`${API_URL}/colaboradores`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify(c)
-    })
-    if (!res.ok) throw new Error("Erro colaborador")
-    fetchData(true, ["colaboradores"])
+    const tempId = `temp-${Date.now()}`
+    const optimisticColaborador: Colaborador = { ...c, id: tempId }
+
+    setData(prev => ({ ...prev, colaboradores: [...prev.colaboradores, optimisticColaborador] }))
+
+    try {
+      const res = await fetch(`${API_URL}/colaboradores`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify(c)
+      })
+      if (!res.ok) throw new Error("Erro colaborador")
+      const newItem = await res.json()
+      setData(prev => ({
+        ...prev,
+        colaboradores: prev.colaboradores.map(item => item.id === tempId ? { ...item, id: String(newItem.id) } : item)
+      }))
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao adicionar colaborador")
+      fetchData(true, ["colaboradores"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const updateColaborador = useCallback(async (id: string, c: Partial<Colaborador>) => {
-    const res = await fetch(`${API_URL}/colaboradores/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify(c)
-    })
-    if (!res.ok) throw new Error("Erro atualizar colaborador")
-    fetchData(true, ["colaboradores"])
+    setData(prev => ({
+      ...prev,
+      colaboradores: prev.colaboradores.map(x => x.id === id ? { ...x, ...c } : x)
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/colaboradores/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify(c)
+      })
+      if (!res.ok) throw new Error("Erro atualizar colaborador")
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao atualizar colaborador")
+      fetchData(true, ["colaboradores"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const removeColaborador = useCallback(async (id: string) => {
-    const res = await fetch(`${API_URL}/colaboradores/${id}`, {
-      method: "DELETE",
-      headers: {
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      }
-    })
-    if (!res.ok) throw new Error("Erro remover colaborador")
-    fetchData(true, ["colaboradores"])
+    setData(prev => ({ ...prev, colaboradores: prev.colaboradores.filter(x => x.id !== id) }))
+
+    try {
+      const res = await fetch(`${API_URL}/colaboradores/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        }
+      })
+      if (!res.ok) throw new Error("Erro remover colaborador")
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao remover colaborador")
+      fetchData(true, ["colaboradores"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const addCamaroteTable = useCallback(async (t: Omit<CamaroteTable, "id" | "pessoaIds" | "garrafas">) => {
-    const res = await fetch(`${API_URL}/mesas-camarote`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify(t)
-    })
-    if (!res.ok) throw new Error("Erro mesa")
-    fetchData(true, ["camaroteTables"])
+    const tempId = `temp-${Date.now()}`
+    const optimisticTable: CamaroteTable = { ...t, id: tempId, pessoaIds: [], garrafas: [] }
+
+    setData(prev => ({ ...prev, camaroteTables: [...prev.camaroteTables, optimisticTable] }))
+
+    try {
+      const res = await fetch(`${API_URL}/mesas-camarote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify(t)
+      })
+      if (!res.ok) throw new Error("Erro mesa")
+      const newItem = await res.json()
+      setData(prev => ({
+        ...prev,
+        camaroteTables: prev.camaroteTables.map(item => item.id === tempId ? { ...item, id: String(newItem.id) } : item)
+      }))
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao adicionar mesa")
+      fetchData(true, ["camaroteTables"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const updateCamaroteTable = useCallback(async (id: string, t: Partial<CamaroteTable>) => {
-    const res = await fetch(`${API_URL}/mesas-camarote/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify(t)
-    })
-    if (!res.ok) throw new Error("Erro atualizar mesa")
-    fetchData(true, ["camaroteTables"])
+    setData(prev => ({
+      ...prev,
+      camaroteTables: prev.camaroteTables.map(x => x.id === id ? { ...x, ...t } : x)
+    }))
+
+    try {
+      const res = await fetch(`${API_URL}/mesas-camarote/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": selectedEventId as string
+        },
+        body: JSON.stringify(t)
+      })
+      if (!res.ok) throw new Error("Erro atualizar mesa")
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao atualizar mesa")
+      fetchData(true, ["camaroteTables"])
+    }
   }, [token, selectedEventId, fetchData])
 
   const addGarrafaToCamarote = useCallback(async (tableId: string, garrafa: string) => {

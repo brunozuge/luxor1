@@ -23,7 +23,7 @@ class ProdutoController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'nome' => 'required|string|unique:produtos,nome',
+            'nome' => 'required|string',
             'custo' => 'required|numeric',
             'preco_venda' => 'required|numeric',
             'estoque_inicial' => 'required|integer',
@@ -55,7 +55,7 @@ class ProdutoController extends Controller
     {
         $data = $request->validate([
             'products' => 'required|array',
-            'products.*.nome' => 'required|string|distinct|unique:produtos,nome',
+            'products.*.nome' => 'required|string',
             'products.*.custo' => 'required|numeric',
             'products.*.preco_venda' => 'required|numeric',
             'products.*.estoque_inicial' => 'required|integer',

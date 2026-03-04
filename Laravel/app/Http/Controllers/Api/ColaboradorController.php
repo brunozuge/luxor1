@@ -25,7 +25,7 @@ class ColaboradorController extends Controller
         $data = $request->validate([
             'nome' => 'required|string',
             'cargo' => 'required|in:barman,garcom,porteiro,promoter,seguranca,caixa,outro',
-            'telefone' => 'required|string|unique:colaboradores,telefone',
+            'telefone' => 'required|string',
             'ativo' => 'boolean',
         ]);
 
@@ -37,7 +37,7 @@ class ColaboradorController extends Controller
         $data = $request->validate([
             'nome' => 'sometimes|string',
             'cargo' => 'sometimes|in:barman,garcom,porteiro,promoter,seguranca,caixa,outro',
-            'telefone' => "sometimes|string|unique:colaboradores,telefone,{$id}",
+            'telefone' => "sometimes|string",
             'ativo' => 'boolean',
         ]);
 
