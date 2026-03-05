@@ -15,6 +15,7 @@ class MesaCamarote extends Model
     protected $fillable = [
         'nome',
         'garcom',
+        'cor_pulseira',
         'garrafas',
         'evento_id',
     ];

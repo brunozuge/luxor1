@@ -15,7 +15,21 @@ import { CreateEventModal } from "./create-event-modal"
 import { Skeleton } from "./ui/skeleton"
 
 export function EventSwitcher({ className }: { className?: string }) {
-    const { currentEvento, setOverlay } = useEventData()
+    const { currentEvento, setOverlay, mounted } = useEventData()
+
+    if (!mounted) {
+        return (
+            <div className={className}>
+                <Button variant="ghost" size="sm" className="gap-2 px-2 opacity-50 cursor-not-allowed">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-muted animate-pulse" />
+                    <div className="flex flex-col items-start gap-1">
+                        <div className="h-2 w-8 bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+                    </div>
+                </Button>
+            </div>
+        )
+    }
 
     return (
         <div className={className}>

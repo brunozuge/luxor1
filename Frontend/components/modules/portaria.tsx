@@ -36,7 +36,8 @@ function calcAge(dataNascimento: string) {
 }
 
 export function PortariaModule() {
-  const { tickets, pessoas, pessoasDentro, lotacaoMaxima, marcarEntrada, loading } = useEventData()
+  const { tickets, pessoas, pessoasDentro, lotacaoMaxima, marcarEntrada, fetchedModules } = useEventData()
+  const isLoading = !fetchedModules.has("tickets")
   const [searchTicket, setSearchTicket] = useState("")
   const [selectedWristband, setSelectedWristband] = useState<WristbandColor>("maior")
   const [lastEntry, setLastEntry] = useState<{ nome: string; hora: string } | null>(null)
@@ -100,7 +101,7 @@ export function PortariaModule() {
         {[1, 2, 3].map((i) => (
           <Card key={i} className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              {loading && tickets.length === 0 ? (
+              {isLoading && tickets.length === 0 ? (
                 <>
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-4 rounded-full" />
@@ -123,7 +124,7 @@ export function PortariaModule() {
               )}
             </CardHeader>
             <CardContent>
-              {loading && tickets.length === 0 ? (
+              {isLoading && tickets.length === 0 ? (
                 <>
                   <Skeleton className="h-10 w-20" />
                   <Skeleton className="mt-2 h-2 w-full" />

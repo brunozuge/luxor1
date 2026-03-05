@@ -37,7 +37,8 @@ import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function BarModule() {
-  const { products, barSales, pessoas, colaboradores, addProducts, addBarSale, addBarSales, removeProduct, updateProduct, removeBarSale, updateBarSale, loading } = useEventData()
+  const { products, barSales, pessoas, colaboradores, addProducts, addBarSale, addBarSales, removeProduct, updateProduct, removeBarSale, updateBarSale, fetchedModules } = useEventData()
+  const isLoading = !fetchedModules.has("products") || !fetchedModules.has("barSales")
   const [productDialogOpen, setProductDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<any | null>(null)
   const [saleDialogOpen, setSaleDialogOpen] = useState(false)
@@ -160,6 +161,13 @@ export function BarModule() {
     setErrors(newErrors)
     if (Object.values(newErrors).some((v) => v)) {
       toast.error("Preencha os campos obrigatorios.")
+      return
+    }
+
+    // Stock check
+    const product = products.find(p => p.id === saleForm.productId)
+    if (product && !editingSale && product.estoqueAtual < saleForm.quantidade) {
+      toast.error(`Estoque insuficiente! ${product.nome} tem apenas ${product.estoqueAtual} em estoque.`)
       return
     }
 
@@ -289,7 +297,7 @@ export function BarModule() {
         {[1, 2, 3, 4].map(i => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              {loading && products.length === 0 ? (
+              {isLoading && products.length === 0 ? (
                 <>
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-4" />
@@ -317,7 +325,7 @@ export function BarModule() {
               )}
             </CardHeader>
             <CardContent>
-              {loading && products.length === 0 ? <Skeleton className="h-8 w-20" /> : (
+              {isLoading && products.length === 0 ? <Skeleton className="h-8 w-20" /> : (
                 <div className="text-2xl font-bold">
                   {i === 1 ? `R$ ${totalRevenue.toLocaleString()}` : i === 2 ? `R$ ${totalProfit.toLocaleString()}` : i === 3 ? `R$ ${avgTicket.toFixed(2)}` : peakHour?.[0] || "-"}
                 </div>
@@ -333,7 +341,7 @@ export function BarModule() {
           <Table>
             <TableHeader><TableRow><TableHead>Produto</TableHead><TableHead>Custo</TableHead><TableHead>Venda</TableHead><TableHead>Estoque</TableHead><TableHead>Acoes</TableHead></TableRow></TableHeader>
             <TableBody>
-              {loading && products.length === 0 ? [1, 2, 3].map(i => <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell></TableRow>) :
+              {isLoading && products.length === 0 ? [1, 2, 3].map(i => <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell></TableRow>) :
                 salesByProduct.map(p => (
                   <TableRow key={p.id}>
                     <TableCell>{p.nome}</TableCell><TableCell>R$ {p.custo}</TableCell><TableCell>R$ {p.precoVenda}</TableCell><TableCell>{p.estoqueAtual}</TableCell>
@@ -357,7 +365,7 @@ export function BarModule() {
           <Table>
             <TableHeader><TableRow><TableHead>Hora</TableHead><TableHead>Produto</TableHead><TableHead>Cliente</TableHead><TableHead>Total</TableHead><TableHead>Acoes</TableHead></TableRow></TableHeader>
             <TableBody>
-              {loading && barSales.length === 0 ? [1, 2, 3].map(i => <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell></TableRow>) :
+              {isLoading && barSales.length === 0 ? [1, 2, 3].map(i => <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell></TableRow>) :
                 barSales.map(s => (
                   <TableRow key={s.id}>
                     <TableCell>{s.hora}</TableCell><TableCell>{products.find(p => p.id === s.productId)?.nome}</TableCell><TableCell>{pessoas.find(p => p.id === s.pessoaId)?.nome}</TableCell><TableCell>R$ {s.valorTotal}</TableCell>

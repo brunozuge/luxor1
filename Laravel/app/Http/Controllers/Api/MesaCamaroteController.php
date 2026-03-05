@@ -25,6 +25,7 @@ class MesaCamaroteController extends Controller
         $data = $request->validate([
             'nome' => 'required|string',
             'garcom' => 'nullable|string',
+            'cor_pulseira' => 'nullable|string',
         ]);
 
         return response()->json($this->service->create($data), 201);
@@ -35,6 +36,7 @@ class MesaCamaroteController extends Controller
         $data = $request->validate([
             'nome' => 'sometimes|string',
             'garcom' => 'nullable|string',
+            'cor_pulseira' => 'nullable|string',
             'garrafas' => 'nullable|array',
         ]);
 

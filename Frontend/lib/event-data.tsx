@@ -68,6 +68,7 @@ export interface CamaroteTable {
   id: string
   nome: string
   garcom: string
+  cor_pulseira?: string
   garrafas: string[]
   pessoaIds: string[]
 }
@@ -90,6 +91,8 @@ export interface Evento {
     faturamento_bar: number
     colaboradores_count: number
     ingressos_count: number
+    mesas_count: number
+    garrafas_count: number
   }
 }
 
@@ -113,11 +116,14 @@ interface EventContextType extends EventData {
 
   fetchData: (quiet?: boolean, modules?: (keyof EventData)[]) => Promise<void>
   refreshEventos: () => Promise<void>
+  fetchGlobalSummary: () => Promise<void>
   addEvento: (e: Omit<Evento, "id">) => Promise<Evento>
   updateEvento: (id: string, e: Partial<Evento>) => Promise<void>
   removeEvento: (id: string) => Promise<void>
   isInitialLoad: boolean
+  isGlobalLoading: boolean
   fetchedModules: Set<keyof EventData>
+  mounted: boolean
 
   addPessoa: (p: Omit<Person, "id" | "createdAt">) => Promise<string | undefined>
   updatePessoa: (id: string, p: Partial<Person>) => Promise<void>
@@ -173,27 +179,37 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     eventos: [],
     listas: []
   })
+
+  // Use a ref to always have access to current data without stale closures
+  const dataRef = useRef(data)
+  useEffect(() => {
+    dataRef.current = data
+  }, [data])
+
   const [loading, setLoading] = useState(false)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [fetchedModules, setFetchedModules] = useState<Set<keyof EventData>>(new Set())
+  const [mounted, setMounted] = useState(false)
 
-  // Refs to avoid infinite loops in fetchData dependencies
-  const isInitialLoadRef = useRef(isInitialLoad)
   const fetchedModulesRef = useRef(fetchedModules)
-
-  useEffect(() => {
-    isInitialLoadRef.current = isInitialLoad
-  }, [isInitialLoad])
-
   useEffect(() => {
     fetchedModulesRef.current = fetchedModules
   }, [fetchedModules])
 
   const [selectedEventId, setSelectedEventIdState] = useState<string | null>(null)
-  const { token, isAuthenticated } = useAuth()
+  const selectedEventIdRef = useRef(selectedEventId)
+  useEffect(() => {
+    selectedEventIdRef.current = selectedEventId
+  }, [selectedEventId])
 
-  const setSelectedEventId = (id: string | null) => {
-    if (String(id) === String(selectedEventId)) return
+  const { token, isAuthenticated } = useAuth()
+  const tokenRef = useRef(token)
+  useEffect(() => {
+    tokenRef.current = token
+  }, [token])
+
+  const setSelectedEventId = useCallback((id: string | null) => {
+    if (String(id) === String(selectedEventIdRef.current)) return
     setSelectedEventIdState(id)
     setIsInitialLoad(true)
     setFetchedModules(new Set())
@@ -215,64 +231,117 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     } else {
       localStorage.removeItem("selected_evento_id")
     }
-  }
+  }, [])
 
   const [overlay, setOverlay] = useState<"none" | "festas" | "eventpro">("none")
 
   useEffect(() => {
+    setMounted(true)
     const saved = localStorage.getItem("selected_evento_id")
     if (saved) setSelectedEventIdState(saved)
   }, [])
 
   const currentEvento = data.eventos.find(e => String(e.id) === String(selectedEventId)) || null
 
+  const [isGlobalLoading, setIsGlobalLoading] = useState(false)
+
   const refreshEventos = useCallback(async () => {
-    if (!token) return
-    setLoading(true)
+    const currentToken = tokenRef.current
+    if (!currentToken) return
+    // Only set loading if it's the very first load of the list
+    const isFirstListLoad = dataRef.current.eventos.length === 0
+    if (isFirstListLoad) setLoading(true)
+
     try {
       const res = await fetch(`${API_URL}/eventos`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${currentToken}`,
           Accept: "application/json",
         },
       })
       if (!res.ok) throw new Error("Erro ao carregar eventos")
       const eventos = await res.json()
-      setData(prev => ({
-        ...prev,
-        eventos: eventos.map((e: any) => ({
-          id: String(e.id),
-          nome: e.nome,
-          cor_primaria: e.cor_primaria,
-          cor_secundaria: e.cor_secundaria,
-          logo: e.logo,
-          stats: e.stats
-        }))
+      const mapped = eventos.map((e: any) => ({
+        id: String(e.id),
+        nome: e.nome,
+        cor_primaria: e.cor_primaria,
+        cor_secundaria: e.cor_secundaria,
+        logo: e.logo,
+        // Lightweight list doesn't have stats yet, preserve if they exist
+        stats: dataRef.current.eventos.find(ex => String(ex.id) === String(e.id))?.stats
       }))
+      setData(prev => ({ ...prev, eventos: mapped }))
+
       if (eventos.length > 0) {
-        const isValid = eventos.some((e: any) => String(e.id) === String(selectedEventId))
-        if (!selectedEventId || !isValid) {
+        const currentId = selectedEventIdRef.current
+        const isValid = eventos.some((e: any) => String(e.id) === String(currentId))
+        if (!currentId || !isValid) {
           setSelectedEventId(String(eventos[0].id))
-        } else {
-          // If we have a valid selectedEventId, fetch its data
-          fetchData()
         }
       }
     } catch (err) {
       console.error(err)
     } finally {
-      setLoading(false)
+      if (isFirstListLoad) setLoading(false)
     }
-  }, [token, selectedEventId])
+  }, [setSelectedEventId])
+
+  const fetchGlobalSummary = useCallback(async () => {
+    const currentToken = tokenRef.current
+    if (!currentToken) return
+    setIsGlobalLoading(true)
+
+    try {
+      const res = await fetch(`${API_URL}/eventos/summary`, {
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+          Accept: "application/json",
+        },
+      })
+      if (!res.ok) throw new Error("Erro ao carregar resumo global")
+      const summary = await res.json()
+      const mapped = summary.map((e: any) => ({
+        id: String(e.id),
+        nome: e.nome,
+        cor_primaria: e.cor_primaria,
+        cor_secundaria: e.cor_secundaria,
+        logo: e.logo,
+        stats: {
+          faturamento_total: Number(e.stats?.faturamento_total || 0),
+          faturamento_ingressos: Number(e.stats?.faturamento_ingressos || 0),
+          faturamento_bar: Number(e.stats?.faturamento_bar || 0),
+          colaboradores_count: Number(e.stats?.colaboradores_count || 0),
+          ingressos_count: Number(e.stats?.ingressos_count || 0),
+          mesas_count: Number(e.stats?.mesas_count || 0),
+          garrafas_count: Number(e.stats?.garrafas_count || 0),
+        }
+      }))
+      setData(prev => ({ ...prev, eventos: mapped }))
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsGlobalLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshEventos()
+    }
+  }, [isAuthenticated, refreshEventos])
 
   const fetchData = useCallback(async (isSilent = false, modules?: (keyof EventData)[]) => {
-    if (!token || !selectedEventId) return
-    const currentFetchEventId = selectedEventId
+    if (!isAuthenticated || !tokenRef.current || !selectedEventIdRef.current) {
+      if (!selectedEventIdRef.current) setLoading(false)
+      return
+    }
+    const currentToken = tokenRef.current
+    const currentEventId = selectedEventIdRef.current
 
     if (!isSilent) setLoading(true)
 
     try {
-      const allModules = [
+      const allModulesConfig = [
         { key: "pessoas" as keyof EventData, url: `${API_URL}/pessoas` },
         { key: "tickets" as keyof EventData, url: `${API_URL}/ingressos` },
         { key: "products" as keyof EventData, url: `${API_URL}/produtos` },
@@ -283,121 +352,100 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       ]
 
       const modulesToFetch = modules
-        ? allModules.filter(m => modules.includes(m.key))
-        : allModules
+        ? allModulesConfig.filter(m => modules.includes(m.key))
+        : allModulesConfig
 
       const headers = {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${currentToken}`,
         Accept: "application/json",
-        "X-Evento-Id": String(selectedEventId)
+        "X-Evento-Id": String(currentEventId)
       }
 
+      // Fetch each module and update independently
       await Promise.all(
         modulesToFetch.map(async (m) => {
           try {
             const res = await fetch(m.url, { headers })
+            if (selectedEventIdRef.current !== currentEventId) return
 
-            // Verificacao de segurança: se o evento mudou enquanto a bosta da requisição tava rolando, ignora
-            if (selectedEventId !== currentFetchEventId) return
-
-            if (!res.ok) {
-              if (res.status === 401) return
-              console.error(`API Error for ${m.key}: ${res.statusText} (${res.url})`)
-              setFetchedModules(prev => new Set(prev).add(m.key))
-              return
-            }
-
-            const json = await res.json()
+            const json = res.ok ? await res.json() : []
             let transformed: any = json
 
-            if (m.key === "pessoas") {
+            const key = m.key
+            if (key === "pessoas") {
               transformed = json.map((p: any) => ({
-                id: String(p.id),
-                nome: p.nome,
-                instagram: p.instagram || "",
-                cpfRg: p.cpf_rg || "",
-                dataNascimento: p.data_nascimento || "",
-                tipoIngresso: p.tipo_ingresso as TicketType,
-                observacao: p.observacao || "",
-                createdAt: p.created_at
+                id: String(p.id), nome: p.nome, instagram: p.instagram || "",
+                cpfRg: p.cpf_rg || "", dataNascimento: p.data_nascimento || "",
+                tipoIngresso: p.tipo_ingresso, observacao: p.observacao || "", createdAt: p.created_at
               }))
-            } else if (m.key === "tickets") {
+            } else if (key === "tickets") {
               transformed = json.map((i: any) => ({
-                id: String(i.id),
-                numero: i.numero,
-                lote: i.lote || "",
-                valorPago: Number(i.valor_pago),
-                vendedor: i.vendedor || "",
-                formaPagamento: i.forma_pagamento as PaymentMethod,
-                pessoaId: String(i.pessoa_id),
-                entrou: Boolean(i.entrou),
-                horaEntrada: i.hora_entrada,
-                pulseira: i.pulseira as WristbandColor
+                id: String(i.id), numero: i.numero, lote: i.lote || "", valorPago: Number(i.valor_pago),
+                vendedor: i.vendedor || "", formaPagamento: i.forma_pagamento, pessoaId: String(i.pessoa_id),
+                entrou: Boolean(i.entrou), horaEntrada: i.hora_entrada, pulseira: i.pulseira
               }))
-            } else if (m.key === "products") {
+            } else if (key === "products") {
               transformed = json.map((p: any) => ({
-                id: String(p.id),
-                nome: p.nome,
-                custo: Number(p.custo),
-                precoVenda: Number(p.preco_venda),
-                estoqueInicial: p.estoque_inicial,
-                estoqueAtual: p.estoque_atual
+                id: String(p.id), nome: p.nome, custo: Number(p.custo), precoVenda: Number(p.preco_venda),
+                estoqueInicial: p.estoque_inicial, estoqueAtual: p.estoque_atual
               }))
-            } else if (m.key === "barSales") {
+            } else if (key === "barSales") {
               transformed = json.map((v: any) => ({
-                id: String(v.id),
-                productId: String(v.produto_id),
-                pessoaId: String(v.pessoa_id),
-                vendedor: v.vendedor || "",
-                quantidade: v.quantidade,
-                valorTotal: Number(v.valor_total),
-                hora: v.hora
+                id: String(v.id), productId: String(v.produto_id), pessoaId: String(v.pessoa_id),
+                vendedor: v.vendedor || "", quantidade: v.quantidade, valorTotal: Number(v.valor_total), hora: v.hora
               }))
-            } else if (m.key === "colaboradores") {
+            } else if (key === "colaboradores") {
               transformed = json.map((c: any) => ({
-                id: String(c.id),
-                nome: c.nome,
-                cargo: c.cargo as CargoColaborador,
-                telefone: c.telefone || "",
-                ativo: Boolean(c.ativo)
+                id: String(c.id), nome: c.nome, cargo: c.cargo, telefone: c.telefone || "", ativo: Boolean(c.ativo)
               }))
-            } else if (m.key === "camaroteTables") {
+            } else if (key === "camaroteTables") {
               transformed = json.map((mt: any) => ({
-                id: String(mt.id),
-                nome: mt.nome,
-                garcom: mt.garcom || "",
-                garrafas: mt.garrafas || [],
-                pessoaIds: mt.pessoas?.map((p: any) => String(p.id)) || []
+                id: String(mt.id), nome: mt.nome, garcom: mt.garcom || "", cor_pulseira: mt.cor_pulseira || "",
+                garrafas: mt.garrafas || [], pessoaIds: mt.pessoas?.map((p: any) => String(p.id)) || []
               }))
-            } else if (m.key === "listas") {
-              transformed = json.map((l: any) => ({
-                id: String(l.id),
-                nome: l.nome,
-                descricao: l.descricao || ""
-              }))
+            } else if (key === "listas") {
+              transformed = json.map((l: any) => ({ id: String(l.id), nome: l.nome, descricao: l.descricao || "" }))
             }
 
-            setData(prev => ({ ...prev, [m.key]: transformed }))
-            setFetchedModules(prev => new Set(prev).add(m.key))
-          } catch (error) {
-            console.error(`Failed to load ${m.key}:`, error)
-            setFetchedModules(prev => new Set(prev).add(m.key))
+            // Update specific module data
+            setData(prev => {
+              if (selectedEventIdRef.current !== currentEventId) return prev
+              const currentItems = (prev[key] as any[]) || []
+              const tempItems = currentItems.filter(it => String(it.id).startsWith("temp-"))
+              return {
+                ...prev,
+                [key]: [...tempItems, ...transformed]
+              }
+            })
+
+            // Mark as fetched
+            setFetchedModules(prev => {
+              const next = new Set(prev)
+              next.add(key)
+              return next
+            })
+
+          } catch (e) {
+            console.error(`Error fetching module ${m.key}:`, e)
+            // Even on error, mark as fetched to avoid infinite skeletons
+            setFetchedModules(prev => {
+              const next = new Set(prev)
+              next.add(m.key)
+              return next
+            })
           }
         })
       )
 
-      if (!modules || modules.length === allModules.length) {
+      if (!modules || modules.length === allModulesConfig.length) {
         setIsInitialLoad(false)
       }
     } catch (error) {
-      console.error("Error in fetchData:", error)
+      console.error("Error in fetchData overall:", error)
     } finally {
-      // Outra checagem antes de tirar o loading
-      if (selectedEventId === currentFetchEventId) {
-        setLoading(false)
-      }
+      if (selectedEventIdRef.current === currentEventId) setLoading(false)
     }
-  }, [token, selectedEventId]) // Removed isInitialLoad to avoid loop
+  }, []) // No dependencies on data or selectedEventId — use refs instead
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -405,11 +453,16 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, refreshEventos])
 
+  useEffect(() => {
+    if (overlay !== "none" && isAuthenticated) {
+      fetchGlobalSummary()
+    }
+  }, [overlay, isAuthenticated, fetchGlobalSummary])
+
 
   const addEvento = useCallback(async (e: Omit<Evento, "id">) => {
     const tempId = `temp-${Date.now()}`
-    const previousEventos = data.eventos
-    const optimisticEvento: Evento = { ...e, id: tempId, stats: { faturamento_total: 0, faturamento_ingressos: 0, faturamento_bar: 0, colaboradores_count: 0, ingressos_count: 0 } }
+    const optimisticEvento: Evento = { ...e, id: tempId, stats: { faturamento_total: 0, faturamento_ingressos: 0, faturamento_bar: 0, colaboradores_count: 0, ingressos_count: 0, mesas_count: 0, garrafas_count: 0 } }
 
     setData(prev => ({ ...prev, eventos: [...prev.eventos, optimisticEvento] }))
     toast.success("Evento criado com sucesso!")
@@ -420,28 +473,36 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${tokenRef.current}`
         },
         body: JSON.stringify(e)
       })
       if (!res.ok) throw new Error("Erro ao criar evento")
       const newEvento = await res.json()
+      const mapped = {
+        id: String(newEvento.id),
+        nome: newEvento.nome,
+        cor_primaria: newEvento.cor_primaria,
+        cor_secundaria: newEvento.cor_secundaria,
+        logo: newEvento.logo,
+        stats: newEvento.stats || { faturamento_total: 0, faturamento_ingressos: 0, faturamento_bar: 0, colaboradores_count: 0, ingressos_count: 0 }
+      }
       setData(prev => ({
         ...prev,
-        eventos: prev.eventos.map(ev => ev.id === tempId ? newEvento : ev)
+        eventos: prev.eventos.map(ev => ev.id === tempId ? mapped : ev)
       }))
       setSelectedEventId(String(newEvento.id))
-      return newEvento
+      return mapped
     } catch (error) {
       console.error(error)
-      setData(prev => ({ ...prev, eventos: previousEventos }))
+      setData(prev => ({ ...prev, eventos: prev.eventos.filter(ev => ev.id !== tempId) }))
       toast.error("Erro ao realizar tarefa no banco")
       throw error
     }
-  }, [token, setSelectedEventId, data.eventos])
+  }, [setSelectedEventId])
 
   const updateEvento = useCallback(async (id: string, e: Partial<Evento>) => {
-    const previousEventos = data.eventos
+    const previousEventos = dataRef.current.eventos
     setData(prev => ({
       ...prev,
       eventos: prev.eventos.map(x => String(x.id) === id ? { ...x, ...e } : x)
@@ -454,31 +515,27 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${tokenRef.current}`
         },
         body: JSON.stringify(e)
       })
       if (!res.ok) throw new Error("Erro ao atualizar evento")
-      const updated = await res.json()
-      setData(prev => ({
-        ...prev,
-        eventos: prev.eventos.map(x => String(x.id) === id ? updated : x)
-      }))
     } catch (error) {
       console.error(error)
       setData(prev => ({ ...prev, eventos: previousEventos }))
       toast.error("Erro ao realizar tarefa no banco")
       throw error
     }
-  }, [token, data.eventos])
+  }, [])
 
   const removeEvento = useCallback(async (id: string) => {
-    const previousEventos = data.eventos
+    const previousEventos = dataRef.current.eventos
+    const currentSelectedId = selectedEventIdRef.current
+
     setData(prev => ({
       ...prev,
       eventos: prev.eventos.filter(x => String(x.id) !== id)
     }))
-
     toast.success("Evento removido com sucesso")
 
     try {
@@ -486,30 +543,35 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         method: "DELETE",
         headers: {
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${tokenRef.current}`
         }
       })
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.message || "Erro ao remover evento")
+        throw new Error((err as any).message || "Erro ao remover evento")
       }
 
-      if (String(selectedEventId) === String(id)) {
+      if (String(currentSelectedId) === String(id)) {
         localStorage.removeItem("selected_evento_id")
-        window.location.reload() // Reload is safer for "global" cleanup when a main event is deleted
+        const remaining = previousEventos.filter(x => String(x.id) !== id)
+        if (remaining.length > 0) {
+          const nextId = String(remaining[0].id)
+          setSelectedEventId(nextId)
+        } else {
+          setSelectedEventId(null)
+        }
       }
     } catch (error: any) {
       console.error(error)
       setData(prev => ({ ...prev, eventos: previousEventos }))
       toast.error(error.message || "Falha ao remover evento no banco")
     }
-  }, [token, selectedEventId, data.eventos])
+  }, [setSelectedEventId])
 
   const addPessoa = useCallback(async (p: Omit<Person, "id" | "createdAt">) => {
     const tempId = `temp-${Date.now()}`
     const optimisticPerson: Person = { ...p, id: tempId, createdAt: new Date().toISOString() }
-    const previousPessoas = data.pessoas
 
     setData(prev => ({ ...prev, pessoas: [optimisticPerson, ...prev.pessoas] }))
     toast.success("Pessoa cadastrada!")
@@ -520,8 +582,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify({
           nome: p.nome,
@@ -542,14 +604,14 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       return String(newItem.id)
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, pessoas: previousPessoas }))
+      setData(prev => ({ ...prev, pessoas: prev.pessoas.filter(per => per.id !== tempId) }))
       toast.error("Erro ao realizar tarefa no banco")
       return ""
     }
-  }, [token, selectedEventId, data.pessoas])
+  }, [])
 
   const updatePessoa = useCallback(async (id: string, p: Partial<Person>) => {
-    const previousPessoas = data.pessoas
+    const previous = dataRef.current.pessoas
     setData(prev => ({
       ...prev,
       pessoas: prev.pessoas.map(x => x.id === id ? { ...x, ...p } : x)
@@ -570,21 +632,21 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify(body)
       })
       if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, pessoas: previousPessoas }))
+      setData(prev => ({ ...prev, pessoas: previous }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.pessoas])
+  }, [])
 
   const removePessoa = useCallback(async (id: string) => {
-    const previousPessoas = data.pessoas
+    const previous = dataRef.current.pessoas
     setData(prev => ({ ...prev, pessoas: prev.pessoas.filter(x => x.id !== id) }))
     toast.success("Pessoa removida")
 
@@ -593,21 +655,20 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         method: "DELETE",
         headers: {
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         }
       })
       if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, pessoas: previousPessoas }))
+      setData(prev => ({ ...prev, pessoas: previous }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.pessoas])
+  }, [])
 
   const addTicket = useCallback(async (t: Omit<Ticket, "id" | "entrou" | "horaEntrada" | "pulseira">) => {
     const tempId = `temp-${Date.now()}`
-    const previousTickets = data.tickets
     const optimisticTicket: Ticket = {
       ...t,
       id: tempId,
@@ -625,8 +686,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify({
           numero: t.numero,
@@ -643,15 +704,16 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         tickets: prev.tickets.map(tic => tic.id === tempId ? { ...tic, id: String(newItem.id) } : tic)
       }))
+      refreshEventos()
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, tickets: previousTickets }))
+      setData(prev => ({ ...prev, tickets: prev.tickets.filter(t => t.id !== tempId) }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.tickets])
+  }, [])
 
   const marcarEntrada = useCallback(async (ticketId: string, pulseira: WristbandColor) => {
-    const previousTickets = data.tickets
+    const previous = dataRef.current.tickets
     const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
 
     setData(prev => ({
@@ -666,22 +728,22 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify({ pulseira })
       })
       if (!res.ok) throw new Error("Erro banco")
+      refreshEventos()
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, tickets: previousTickets }))
+      setData(prev => ({ ...prev, tickets: previous }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.tickets])
+  }, [])
 
   const addProduct = useCallback(async (p: Omit<Product, "id" | "estoqueAtual">) => {
     const tempId = `temp-${Date.now()}`
-    const previousProducts = data.products
     const optimisticProduct: Product = { ...p, id: tempId, estoqueAtual: p.estoqueInicial }
 
     setData(prev => ({ ...prev, products: [...prev.products, optimisticProduct] }))
@@ -693,8 +755,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify({
           nome: p.nome,
@@ -711,18 +773,18 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       }))
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, products: previousProducts }))
+      setData(prev => ({ ...prev, products: prev.products.filter(prod => prod.id !== tempId) }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.products])
+  }, [])
 
   const addProducts = useCallback(async (ps: Omit<Product, "id" | "estoqueAtual">[]) => {
-    const previousProducts = data.products
     const tempProducts: Product[] = ps.map((p, idx) => ({
       ...p,
       id: `temp-bulk-${Date.now()}-${idx}`,
       estoqueAtual: p.estoqueInicial
     }))
+    const tempIds = tempProducts.map(p => p.id)
 
     setData(prev => ({ ...prev, products: [...prev.products, ...tempProducts] }))
     toast.success("Produtos adicionados!")
@@ -733,8 +795,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify({
           products: ps.map(p => ({
@@ -746,16 +808,18 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         })
       })
       if (!res.ok) throw new Error("Erro banco")
+      // Remove temp items and re-fetch real ones
+      setData(prev => ({ ...prev, products: prev.products.filter(p => !tempIds.includes(p.id)) }))
       fetchData(true, ["products"])
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, products: previousProducts }))
+      setData(prev => ({ ...prev, products: prev.products.filter(p => !tempIds.includes(p.id)) }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.products, fetchData])
+  }, [fetchData])
 
   const updateProduct = useCallback(async (id: string, p: Partial<Product>) => {
-    const previousProducts = data.products
+    const previous = dataRef.current.products
     setData(prev => ({
       ...prev,
       products: prev.products.map(x => x.id === id ? { ...x, ...p } : x)
@@ -765,7 +829,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     const body: any = {}
     if (p.nome !== undefined) body.nome = p.nome
     if (p.custo !== undefined) body.custo = p.custo
-    if (p.precoVenda !== undefined) body.preco_venda = p.precoVenda  // camelCase in frontend maps to snake_case in backend
+    if (p.precoVenda !== undefined) body.preco_venda = p.precoVenda
     if (p.estoqueInicial !== undefined) body.estoque_inicial = p.estoqueInicial
     if (p.estoqueAtual !== undefined) body.estoque_atual = p.estoqueAtual
 
@@ -775,21 +839,21 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify(body)
       })
       if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, products: previousProducts }))
+      setData(prev => ({ ...prev, products: previous }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.products])
+  }, [])
 
   const removeProduct = useCallback(async (id: string) => {
-    const previousProducts = data.products
+    const previous = dataRef.current.products
     setData(prev => ({ ...prev, products: prev.products.filter(x => x.id !== id) }))
     toast.success("Produto removido")
 
@@ -798,22 +862,20 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         method: "DELETE",
         headers: {
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         }
       })
       if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, products: previousProducts }))
+      setData(prev => ({ ...prev, products: previous }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.products])
+  }, [])
 
   const addBarSale = useCallback(async (s: Omit<BarSale, "id" | "hora" | "valorTotal">) => {
-    const previousBarSales = data.barSales
-    const previousProducts = data.products
-    const prod = data.products.find(p => p.id === s.productId)
+    const prod = dataRef.current.products.find(p => p.id === s.productId)
     const valorTotal = (prod?.precoVenda || 0) * s.quantidade
     const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
 
@@ -833,8 +895,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify({
           produto_id: s.productId,
@@ -843,7 +905,10 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           quantidade: s.quantidade
         })
       })
-      if (!res.ok) throw new Error("Erro banco")
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.message || "Erro banco")
+      }
       const realSale = await res.json()
       setData(prev => ({
         ...prev,
@@ -851,17 +916,21 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       }))
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, barSales: previousBarSales, products: previousProducts }))
-      toast.error("Erro ao realizar tarefa no banco")
+      const previousBarSales = dataRef.current.barSales.filter(s => s.id !== tempId)
+      setData(prev => ({
+        ...prev,
+        barSales: prev.barSales.filter(s => s.id !== tempId),
+        products: prev.products.map(p => p.id === s.productId ? { ...p, estoqueAtual: p.estoqueAtual + s.quantidade } : p)
+      }))
+      toast.error(err instanceof Error ? err.message : "Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.barSales, data.products])
+  }, [])
 
   const addBarSales = useCallback(async (vendedor: string, items: { productId: string; quantidade: number }[], pessoaId?: string) => {
     const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-    const previousBarSales = data.barSales
-    const previousProducts = data.products
+    const currentProducts = dataRef.current.products
     const tempSales: BarSale[] = items.map((item, idx) => {
-      const prod = data.products.find(p => p.id === item.productId)
+      const prod = currentProducts.find(p => p.id === item.productId)
       return {
         id: `temp-bulk-${Date.now()}-${idx}`,
         productId: item.productId,
@@ -872,6 +941,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         hora: now
       }
     })
+    const tempIds = tempSales.map(s => s.id)
 
     setData(prev => {
       const nextProducts = [...prev.products]
@@ -895,8 +965,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify({
           vendedor,
@@ -907,17 +977,40 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           }))
         })
       })
-      if (!res.ok) throw new Error("Erro banco")
-      fetchData(true, ["barSales", "products"])
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.message || "Erro banco")
+      }
+      const createdItems = await res.json()
+      const transformedReal = createdItems.map((v: any) => ({
+        id: String(v.id),
+        productId: String(v.produto_id),
+        pessoaId: String(v.pessoa_id),
+        vendedor: v.vendedor || "",
+        quantidade: v.quantidade,
+        valorTotal: Number(v.valor_total),
+        hora: v.hora
+      }))
+
+      setData(prev => ({
+        ...prev,
+        barSales: [...transformedReal, ...prev.barSales.filter(s => !tempIds.includes(s.id))]
+      }))
+      fetchData(true, ["products"])
+      refreshEventos()
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, barSales: previousBarSales, products: previousProducts }))
-      toast.error("Erro ao realizar tarefa no banco")
+      setData(prev => ({
+        ...prev,
+        barSales: prev.barSales.filter(s => !tempIds.includes(s.id)),
+        products: currentProducts
+      }))
+      toast.error(err instanceof Error ? err.message : "Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData, data.products, data.barSales])
+  }, [fetchData])
 
   const updateBarSale = useCallback(async (id: string, s: Partial<BarSale>) => {
-    const previousBarSales = data.barSales
+    const previous = dataRef.current.barSales
     setData(prev => ({
       ...prev,
       barSales: prev.barSales.map(x => x.id === id ? { ...x, ...s } : x)
@@ -930,8 +1023,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify({
           vendedor: s.vendedor,
@@ -939,19 +1032,21 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           pessoa_id: s.pessoaId === "none" ? null : s.pessoaId,
         })
       })
-      if (!res.ok) throw new Error("Erro banco")
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.message || "Erro banco")
+      }
       fetchData(true, ["barSales", "products"])
+      refreshEventos()
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, barSales: previousBarSales }))
-      toast.error("Erro ao realizar tarefa no banco")
+      setData(prev => ({ ...prev, barSales: previous }))
+      toast.error(err instanceof Error ? err.message : "Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData, data.barSales])
+  }, [fetchData])
 
   const removeBarSale = useCallback(async (id: string) => {
-    const previousBarSales = data.barSales
-    const previousProducts = data.products
-    const saleToRemove = data.barSales.find(s => s.id === id)
+    const saleToRemove = dataRef.current.barSales.find(s => s.id === id)
     setData(prev => ({
       ...prev,
       barSales: prev.barSales.filter(x => x.id !== id),
@@ -959,26 +1054,29 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }))
     toast.success("Venda removida")
 
+    const previousBarSales = dataRef.current.barSales
+    const previousProducts = dataRef.current.products
+
     try {
       const res = await fetch(`${API_URL}/vendas-bar/${id}`, {
         method: "DELETE",
         headers: {
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         }
       })
       if (!res.ok) throw new Error("Erro banco")
+      refreshEventos()
     } catch (err) {
       console.error(err)
       setData(prev => ({ ...prev, barSales: previousBarSales, products: previousProducts }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.barSales, data.products])
+  }, [])
 
   const addColaborador = useCallback(async (c: Omit<Colaborador, "id">) => {
     const tempId = `temp-${Date.now()}`
-    const previousColaboradores = data.colaboradores
     const optimisticColaborador: Colaborador = { ...c, id: tempId }
 
     setData(prev => ({ ...prev, colaboradores: [...prev.colaboradores, optimisticColaborador] }))
@@ -990,8 +1088,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify(c)
       })
@@ -1001,15 +1099,16 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         colaboradores: prev.colaboradores.map(item => item.id === tempId ? { ...item, id: String(newItem.id) } : item)
       }))
+      refreshEventos()
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, colaboradores: previousColaboradores }))
+      setData(prev => ({ ...prev, colaboradores: prev.colaboradores.filter(item => item.id !== tempId) }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.colaboradores])
+  }, [])
 
   const updateColaborador = useCallback(async (id: string, c: Partial<Colaborador>) => {
-    const previousColaboradores = data.colaboradores
+    const previous = dataRef.current.colaboradores
     setData(prev => ({
       ...prev,
       colaboradores: prev.colaboradores.map(x => x.id === id ? { ...x, ...c } : x)
@@ -1022,21 +1121,21 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify(c)
       })
       if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, colaboradores: previousColaboradores }))
+      setData(prev => ({ ...prev, colaboradores: previous }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.colaboradores])
+  }, [])
 
   const removeColaborador = useCallback(async (id: string) => {
-    const previousColaboradores = data.colaboradores
+    const previous = dataRef.current.colaboradores
     setData(prev => ({ ...prev, colaboradores: prev.colaboradores.filter(x => x.id !== id) }))
     toast.success("Colaborador removido")
 
@@ -1045,21 +1144,20 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         method: "DELETE",
         headers: {
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         }
       })
       if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, colaboradores: previousColaboradores }))
+      setData(prev => ({ ...prev, colaboradores: previous }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.colaboradores])
+  }, [])
 
   const addCamaroteTable = useCallback(async (t: Omit<CamaroteTable, "id" | "pessoaIds" | "garrafas">) => {
     const tempId = `temp-${Date.now()}`
-    const previousCamaroteTables = data.camaroteTables
     const optimisticTable: CamaroteTable = { ...t, id: tempId, pessoaIds: [], garrafas: [] }
 
     setData(prev => ({ ...prev, camaroteTables: [...prev.camaroteTables, optimisticTable] }))
@@ -1071,8 +1169,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify(t)
       })
@@ -1084,13 +1182,13 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       }))
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, camaroteTables: previousCamaroteTables }))
+      setData(prev => ({ ...prev, camaroteTables: prev.camaroteTables.filter(item => item.id !== tempId) }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.camaroteTables])
+  }, [])
 
   const updateCamaroteTable = useCallback(async (id: string, t: Partial<CamaroteTable>) => {
-    const previousCamaroteTables = data.camaroteTables
+    const previous = dataRef.current.camaroteTables
     setData(prev => ({
       ...prev,
       camaroteTables: prev.camaroteTables.map(x => x.id === id ? { ...x, ...t } : x)
@@ -1103,21 +1201,20 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify(t)
       })
       if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, camaroteTables: previousCamaroteTables }))
+      setData(prev => ({ ...prev, camaroteTables: previous }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.camaroteTables])
+  }, [])
 
   const addGarrafaToCamarote = useCallback(async (tableId: string, garrafa: string) => {
-    // Optimistic update
     setData(prev => ({
       ...prev,
       camaroteTables: prev.camaroteTables.map(t => t.id === tableId ? { ...t, garrafas: [...t.garrafas, garrafa] } : t)
@@ -1129,8 +1226,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": selectedEventIdRef.current as string
         },
         body: JSON.stringify({ garrafa })
       })
@@ -1140,10 +1237,9 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       toast.error("Erro ao adicionar garrafa")
       fetchData(true, ["camaroteTables"])
     }
-  }, [token, selectedEventId, fetchData])
+  }, [fetchData])
 
   const removeGarrafaFromCamarote = useCallback(async (tableId: string, index: number) => {
-    // Optimistic update
     setData(prev => ({
       ...prev,
       camaroteTables: prev.camaroteTables.map(t => t.id === tableId ? { ...t, garrafas: t.garrafas.filter((_, i) => i !== index) } : t)
@@ -1154,8 +1250,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         method: "DELETE",
         headers: {
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": selectedEventIdRef.current as string
         }
       })
       if (!res.ok) throw new Error("Erro remover garrafa")
@@ -1164,10 +1260,9 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       toast.error("Erro ao remover garrafa")
       fetchData(true, ["camaroteTables"])
     }
-  }, [token, selectedEventId, fetchData])
+  }, [fetchData])
 
   const addPessoaToCamarote = useCallback(async (tableId: string, pessoaId: string) => {
-    // Optimistic update
     setData(prev => ({
       ...prev,
       camaroteTables: prev.camaroteTables.map(t => t.id === tableId ? { ...t, pessoaIds: [...t.pessoaIds, pessoaId] } : t)
@@ -1179,8 +1274,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": selectedEventIdRef.current as string
         },
         body: JSON.stringify({ pessoa_id: pessoaId })
       })
@@ -1190,10 +1285,9 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       toast.error("Erro ao adicionar pessoa")
       fetchData(true, ["camaroteTables"])
     }
-  }, [token, selectedEventId, fetchData])
+  }, [fetchData])
 
   const removePessoaFromCamarote = useCallback(async (tableId: string, pessoaId: string) => {
-    // Optimistic update
     setData(prev => ({
       ...prev,
       camaroteTables: prev.camaroteTables.map(t => t.id === tableId ? { ...t, pessoaIds: t.pessoaIds.filter(pid => pid !== pessoaId) } : t)
@@ -1204,8 +1298,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         method: "DELETE",
         headers: {
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": selectedEventIdRef.current as string
         }
       })
       if (!res.ok) throw new Error("Erro remover pessoa mesa")
@@ -1214,12 +1308,11 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       toast.error("Erro ao remover pessoa")
       fetchData(true, ["camaroteTables"])
     }
-  }, [token, selectedEventId, fetchData])
+  }, [fetchData])
 
   const addListaItem = useCallback(async (item: Omit<ListaItem, "id">) => {
     const tempId = `temp-${Date.now()}`
     const optimisticItem: ListaItem = { ...item, id: tempId }
-    const previousListas = data.listas
 
     setData(prev => ({ ...prev, listas: [...prev.listas, optimisticItem] }))
     toast.success("Lista criada!")
@@ -1230,8 +1323,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify(item)
       })
@@ -1243,13 +1336,13 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       }))
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, listas: previousListas }))
+      setData(prev => ({ ...prev, listas: prev.listas.filter(i => i.id !== tempId) }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.listas])
+  }, [])
 
   const updateListaItem = useCallback(async (id: string, item: Partial<ListaItem>) => {
-    const previousListas = data.listas
+    const previous = dataRef.current.listas
     setData(prev => ({
       ...prev,
       listas: prev.listas.map(x => x.id === id ? { ...x, ...item } : x)
@@ -1262,21 +1355,21 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         },
         body: JSON.stringify(item)
       })
       if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, listas: previousListas }))
+      setData(prev => ({ ...prev, listas: previous }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.listas])
+  }, [])
 
   const removeListaItem = useCallback(async (id: string) => {
-    const previousListas = data.listas
+    const previous = dataRef.current.listas
     setData(prev => ({ ...prev, listas: prev.listas.filter(l => l.id !== id) }))
     toast.success("Lista removida!")
 
@@ -1285,17 +1378,17 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         method: "DELETE",
         headers: {
           "Accept": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": String(selectedEventId)
+          "Authorization": `Bearer ${tokenRef.current}`,
+          "X-Evento-Id": String(selectedEventIdRef.current)
         }
       })
       if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      setData(prev => ({ ...prev, listas: previousListas }))
+      setData(prev => ({ ...prev, listas: previous }))
       toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, data.listas])
+  }, [])
 
   const setLotacaoMaxima = (n: number) => setData(prev => ({ ...prev, lotacaoMaxima: n }))
 
@@ -1305,16 +1398,19 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     <EventContext.Provider value={{
       ...data,
       loading,
-      isInitialLoad,
-      fetchedModules,
       selectedEventId,
       setSelectedEventId,
       currentEvento,
       fetchData,
       refreshEventos,
+      fetchGlobalSummary,
       addEvento,
       updateEvento,
       removeEvento,
+      isInitialLoad,
+      isGlobalLoading,
+      fetchedModules,
+      mounted,
       addPessoa,
       updatePessoa,
       removePessoa,

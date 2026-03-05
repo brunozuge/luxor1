@@ -1,5 +1,4 @@
-"use client"
-
+import React from "react"
 import { useEventData } from "@/lib/event-data"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -24,10 +23,92 @@ export function DashboardModule() {
     camaroteTables,
     pessoasDentro,
     lotacaoMaxima,
-    loading,
+    fetchedModules,
+    refreshEventos
   } = useEventData()
 
-  if (loading && pessoas.length === 0) {
+  const isLoading = !fetchedModules.has("pessoas") || !fetchedModules.has("tickets") || !fetchedModules.has("products") || !fetchedModules.has("barSales")
+
+  const stats = React.useMemo(() => {
+    // If we're loading or no data, return default stats to avoid errors
+    if (isLoading) return {
+      percentage: 0, isNearCapacity: false, ticketRevenue: 0, ticketsPending: 0,
+      barRevenue: 0, barProfit: 0, topProduct: null, totalGarrafas: 0,
+      camarotePessoas: 0, lowStock: [], totalRevenue: 0
+    }
+
+    const percentage = Math.round((pessoasDentro / lotacaoMaxima) * 100)
+    const isNearCapacity = percentage >= 80
+
+    // Ticket revenue
+    const ticketRevenue = tickets.reduce((sum, t) => sum + t.valorPago, 0)
+    const ticketsPending = tickets.filter((t) => !t.entrou).length
+
+    // Bar stats
+    const barRevenue = barSales.reduce((sum, s) => sum + s.valorTotal, 0)
+
+    // Optimize bar cost calculation by creating a map of product costs
+    const productCostMap = new Map(products.map(p => [p.id, p.custo]))
+    const barCost = barSales.reduce((sum, s) => {
+      const costo = productCostMap.get(s.productId) || 0
+      return sum + (costo * s.quantidade)
+    }, 0)
+    const barProfit = barRevenue - barCost
+
+    // Top product - OPTIMIZED: Use a Map for O(N + M) instead of O(N * M)
+    const salesByProduct = new Map<string, number>()
+    for (const sale of barSales) {
+      salesByProduct.set(sale.productId, (salesByProduct.get(sale.productId) || 0) + sale.quantidade)
+    }
+
+    const productSales = products.map((p) => ({
+      ...p,
+      sold: salesByProduct.get(p.id) || 0,
+    })).sort((a, b) => b.sold - a.sold)
+    const topProduct = productSales[0]
+
+    // Camarote stats
+    const totalGarrafas = camaroteTables.reduce((sum, t) => sum + t.garrafas.length, 0)
+    const camarotePessoas = camaroteTables.reduce((s, t) => s + t.pessoaIds.length, 0)
+
+    // Low stock items
+    const lowStock = products.filter(
+      (p) => p.estoqueInicial > 0 && p.estoqueAtual / p.estoqueInicial < 0.2
+    )
+
+    // Revenue total
+    const totalRevenue = ticketRevenue + barRevenue
+
+    return {
+      percentage,
+      isNearCapacity,
+      ticketRevenue,
+      ticketsPending,
+      barRevenue,
+      barProfit,
+      topProduct,
+      totalGarrafas,
+      camarotePessoas,
+      lowStock,
+      totalRevenue
+    }
+  }, [isLoading, pessoasDentro, lotacaoMaxima, tickets, barSales, products, camaroteTables])
+
+  const {
+    percentage,
+    isNearCapacity,
+    ticketRevenue,
+    ticketsPending,
+    barRevenue,
+    barProfit,
+    topProduct,
+    totalGarrafas,
+    camarotePessoas,
+    lowStock,
+    totalRevenue
+  } = stats
+
+  if (isLoading) {
     return (
       <div className="flex flex-col gap-6">
         <div>
@@ -69,39 +150,6 @@ export function DashboardModule() {
       </div>
     )
   }
-
-  const percentage = Math.round((pessoasDentro / lotacaoMaxima) * 100)
-  const isNearCapacity = percentage >= 80
-
-  // Ticket revenue
-  const ticketRevenue = tickets.reduce((sum, t) => sum + t.valorPago, 0)
-  const ticketsPending = tickets.filter((t) => !t.entrou).length
-
-  // Bar stats
-  const barRevenue = barSales.reduce((sum, s) => sum + s.valorTotal, 0)
-  const barCost = barSales.reduce((sum, s) => {
-    const prod = products.find((p) => p.id === s.productId)
-    return sum + (prod ? prod.custo * s.quantidade : 0)
-  }, 0)
-  const barProfit = barRevenue - barCost
-
-  // Top product
-  const productSales = products.map((p) => ({
-    ...p,
-    sold: barSales.filter((s) => s.productId === p.id).reduce((sum, s) => sum + s.quantidade, 0),
-  })).sort((a, b) => b.sold - a.sold)
-  const topProduct = productSales[0]
-
-  // Camarote stats
-  const totalGarrafas = camaroteTables.reduce((sum, t) => sum + t.garrafas.length, 0)
-
-  // Low stock items
-  const lowStock = products.filter(
-    (p) => p.estoqueInicial > 0 && p.estoqueAtual / p.estoqueInicial < 0.2
-  )
-
-  // Revenue total
-  const totalRevenue = ticketRevenue + barRevenue
 
   return (
     <div className="flex flex-col gap-6">

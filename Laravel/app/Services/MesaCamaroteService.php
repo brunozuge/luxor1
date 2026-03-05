@@ -17,6 +17,7 @@ class MesaCamaroteService
         return MesaCamarote::create([
             'nome' => $data['nome'],
             'garcom' => $data['garcom'],
+            'cor_pulseira' => $data['cor_pulseira'] ?? null,
             'garrafas' => []
         ]);
     }

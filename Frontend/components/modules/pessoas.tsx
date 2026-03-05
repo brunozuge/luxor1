@@ -95,7 +95,8 @@ function formatCPF(v: string) {
 }
 
 export function PessoasModule() {
-  const { pessoas, addPessoa, updatePessoa, removePessoa, loading } = useEventData()
+  const { pessoas, addPessoa, updatePessoa, removePessoa, fetchedModules } = useEventData()
+  const isLoading = !fetchedModules.has("pessoas")
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -352,7 +353,7 @@ export function PessoasModule() {
         {[1, 2, 3].map((i) => (
           <Card key={i} className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              {loading && pessoas.length === 0 ? (
+              {isLoading && pessoas.length === 0 ? (
                 <>
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-4" />
@@ -375,7 +376,7 @@ export function PessoasModule() {
               )}
             </CardHeader>
             <CardContent>
-              {loading && pessoas.length === 0 ? (
+              {isLoading && pessoas.length === 0 ? (
                 <Skeleton className="h-8 w-16" />
               ) : i === 1 ? (
                 <div className="text-2xl font-bold">{pessoas.length}</div>
@@ -418,7 +419,7 @@ export function PessoasModule() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading && pessoas.length === 0 ? (
+              {isLoading && pessoas.length === 0 ? (
                 [1, 2, 3, 4, 5].map((i) => (
                   <TableRow key={i} className="border-border">
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
@@ -476,7 +477,7 @@ export function PessoasModule() {
                   )
                 })
               )}
-              {!loading && filtered.length === 0 && (
+              {!isLoading && filtered.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Nenhuma pessoa encontrada

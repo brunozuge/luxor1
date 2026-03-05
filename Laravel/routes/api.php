@@ -20,6 +20,7 @@ Route::prefix('v1')->group(function () {
         Route::get('me', [AuthController::class, 'me']);
 
         // Eventos
+        Route::get('eventos/summary', [EventoController::class, 'summary']);
         Route::apiResource('eventos', EventoController::class);
 
         // Pessoas

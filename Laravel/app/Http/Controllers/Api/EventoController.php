@@ -12,16 +12,42 @@ class EventoController extends Controller
      */
     public function index()
     {
-        return $this->summary();
+        $eventos = auth()->user()->eventos()->get(['id', 'nome', 'cor_primaria', 'cor_secundaria', 'logo']);
+        return response()->json($eventos);
     }
 
     public function summary()
     {
-        $eventos = auth()->user()->eventos()->get()->map(function ($evento) {
-            return $this->formatEvento($evento);
+        $eventos = auth()->user()->eventos()
+            ->withCount([
+                'ingressos as ingressos_count',
+                'colaboradores as colaboradores_count',
+                'mesasCamarote as mesas_count'
+            ])
+            ->withSum('ingressos as faturamento_ingressos', 'valor_pago')
+            ->withSum('vendasBar as faturamento_bar', 'valor_total')
+            ->get();
+
+        $mapped = $eventos->map(function ($evento) {
+            return [
+                'id' => $evento->id,
+                'nome' => $evento->nome,
+                'cor_primaria' => $evento->cor_primaria,
+                'cor_secundaria' => $evento->cor_secundaria,
+                'logo' => $evento->logo,
+                'stats' => [
+                    'faturamento_total' => (float)$evento->faturamento_ingressos + (float)$evento->faturamento_bar,
+                    'faturamento_ingressos' => (float)$evento->faturamento_ingressos,
+                    'faturamento_bar' => (float)$evento->faturamento_bar,
+                    'colaboradores_count' => (int)$evento->colaboradores_count,
+                    'ingressos_count' => (int)$evento->ingressos_count,
+                    'mesas_count' => (int)$evento->mesas_count,
+                    'garrafas_count' => $this->countGarrafas($evento),
+                ]
+            ];
         });
 
-        return response()->json($eventos);
+        return response()->json($mapped);
     }
 
     public function store(Request $request)
@@ -70,10 +96,14 @@ class EventoController extends Controller
 
     private function formatEvento($evento)
     {
+        $evento->loadCount([
+            'ingressos as ingressos_count',
+            'colaboradores as colaboradores_count',
+            'mesasCamarote as mesas_count'
+        ]);
+
         $faturamento_ingressos = $evento->ingressos()->sum('valor_pago');
         $faturamento_bar = $evento->vendasBar()->sum('valor_total');
-        $colaboradores_count = $evento->colaboradores()->count();
-        $ingressos_count = $evento->ingressos()->count();
 
         return [
             'id' => $evento->id,
@@ -85,9 +115,21 @@ class EventoController extends Controller
                 'faturamento_total' => $faturamento_ingressos + $faturamento_bar,
                 'faturamento_ingressos' => $faturamento_ingressos,
                 'faturamento_bar' => $faturamento_bar,
-                'colaboradores_count' => $colaboradores_count,
-                'ingressos_count' => $ingressos_count,
+                'colaboradores_count' => (int)$evento->colaboradores_count,
+                'ingressos_count' => (int)$evento->ingressos_count,
+                'mesas_count' => (int)$evento->mesas_count,
+                'garrafas_count' => $this->countGarrafas($evento),
             ]
         ];
+    }
+
+    private function countGarrafas($evento)
+    {
+        return $evento->mesasCamarote()
+            ->withoutGlobalScope('evento')
+            ->get()
+            ->reduce(function ($carry, $mesa) {
+                return $carry + (is_array($mesa->garrafas) ? count($mesa->garrafas) : 0);
+            }, 0);
     }
 }

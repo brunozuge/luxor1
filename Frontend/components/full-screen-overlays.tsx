@@ -23,15 +23,32 @@ import { ConfirmDialog } from "@/components/confirm-dialog"
 import { EventFormModal } from "@/components/event-form-modal"
 
 export function FullScreenOverlays() {
-    const { overlay, setOverlay, eventos, setSelectedEventId, removeEvento } = useEventData()
+    const { overlay, setOverlay, eventos, setSelectedEventId, removeEvento, isGlobalLoading } = useEventData()
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null)
     const [eventToEdit, setEventToEdit] = useState<Evento | null>(null)
     const [eventToDelete, setEventToDelete] = useState<string | null>(null)
 
+    const globalStats = React.useMemo(() => {
+        const totalRevenue = eventos.reduce((sum, e) => sum + (e.stats?.faturamento_total || 0), 0)
+        const totalColabs = eventos.reduce((sum, e) => sum + (e.stats?.colaboradores_count || 0), 0)
+        const totalTickets = eventos.reduce((sum, e) => sum + (e.stats?.ingressos_count || 0), 0)
+        const totalTables = eventos.reduce((sum, e) => sum + (e.stats?.mesas_count || 0), 0)
+        const totalBottles = eventos.reduce((sum, e) => sum + (e.stats?.garrafas_count || 0), 0)
+
+        const chartData = eventos.map(e => ({
+            name: e.nome,
+            value: e.stats?.faturamento_total || 0,
+            color: e.cor_primaria
+        })).sort((a, b) => b.value - a.value).slice(0, 10)
+
+        const maxChartValue = Math.max(...chartData.map(d => d.value), 1)
+
+        return { totalRevenue, totalColabs, totalTickets, totalTables, totalBottles, chartData, maxChartValue }
+    }, [eventos])
+
     if (overlay === "none") return null
 
-    const totalGlobalRevenue = eventos.reduce((sum, e) => sum + (e.stats?.faturamento_total || 0), 0)
-    const totalGlobalColabs = eventos.reduce((sum, e) => sum + (e.stats?.colaboradores_count || 0), 0)
+    const { totalRevenue, totalColabs, totalTickets, totalTables, totalBottles, chartData, maxChartValue } = globalStats
 
     return (
         <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-in fade-in zoom-in-95 duration-200">
@@ -50,9 +67,17 @@ export function FullScreenOverlays() {
                         </Button>
                     )}
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setOverlay("none")}>
-                    <X className="h-6 w-6" />
-                </Button>
+                <div className="flex items-center gap-3">
+                    {isGlobalLoading && (
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground animate-pulse">
+                            <TrendingUp className="h-3 w-3 animate-bounce" />
+                            Atualizando dados globais...
+                        </div>
+                    )}
+                    <Button variant="ghost" size="icon" onClick={() => setOverlay("none")}>
+                        <X className="h-6 w-6" />
+                    </Button>
+                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-secondary/5">
@@ -125,11 +150,31 @@ export function FullScreenOverlays() {
                                                     </div>
                                                     <div className="p-2 sm:p-3 rounded-lg bg-secondary/20 border border-border">
                                                         <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 flex items-center gap-1 uppercase font-bold tracking-tighter">
-                                                            <Wine className="h-3 w-3" /> Consumo Bar
+                                                            <Wine className="h-3 w-3" /> Bar
                                                         </p>
                                                         <p className="text-sm sm:text-base font-bold mt-4 sm:mt-5">R$ {evento.stats?.faturamento_bar?.toLocaleString() || "0"}</p>
                                                     </div>
+
+                                                    {/* Novas Stats VIP */}
+                                                    <div className="p-2 sm:p-3 rounded-lg bg-secondary/20 border border-border col-span-2">
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <p className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 uppercase font-bold tracking-tighter">
+                                                                <Wine className="h-3 w-3 text-red-500" /> Resumo VIP / Camarote
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex gap-4">
+                                                            <div>
+                                                                <p className="text-[10px] text-muted-foreground">Mesas</p>
+                                                                <p className="text-sm font-bold">{evento.stats?.mesas_count || 0}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[10px] text-muted-foreground">Garrafas</p>
+                                                                <p className="text-sm font-bold">{evento.stats?.garrafas_count || 0}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
+
                                                 <div className="mt-4 space-y-2">
                                                     <div className="flex justify-between text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
                                                         <span>Ingressos</span>
@@ -170,46 +215,85 @@ export function FullScreenOverlays() {
                     </div>
                 ) : (
                     <div className="max-w-7xl mx-auto space-y-8">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                             <Card className="bg-gradient-to-br from-red-500/10 to-transparent border-red-500/20">
                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase text-red-500">Volume Total</CardTitle>
                                     <DollarSign className="h-4 w-4 text-red-500" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl font-bold">R$ {totalGlobalRevenue.toLocaleString()}</div>
-                                    <p className="text-xs text-muted-foreground mt-1">Soma de todos os {eventos.length} eventos</p>
+                                    <div className="text-2xl font-bold">R$ {totalRevenue.toLocaleString()}</div>
+                                    <p className="text-[10px] text-muted-foreground mt-1">Soma de {eventos.length} eventos</p>
                                 </CardContent>
                             </Card>
                             <Card className="bg-gradient-to-br from-red-500/10 to-transparent border-red-500/20">
                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase text-red-500">Colaboradores Totais</CardTitle>
+                                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase text-red-500">Público Total</CardTitle>
                                     <Users className="h-4 w-4 text-red-500" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl font-bold">{totalGlobalColabs}</div>
-                                    <p className="text-xs text-muted-foreground mt-1">Equipe ativa em toda a plataforma</p>
+                                    <div className="text-2xl font-bold">{totalTickets}</div>
+                                    <p className="text-[10px] text-muted-foreground mt-1">Ingressos emitidos no total</p>
                                 </CardContent>
                             </Card>
                             <Card className="bg-gradient-to-br from-red-500/10 to-transparent border-red-500/20">
                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase text-red-500">Eventos Gerenciados</CardTitle>
+                                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase text-red-500">Equipe Global</CardTitle>
+                                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">{totalColabs}</div>
+                                    <p className="text-[10px] text-muted-foreground mt-1">Colaboradores ativos</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-gradient-to-br from-red-500/10 to-transparent border-red-500/20">
+                                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase text-red-500">VIP & Camarote</CardTitle>
                                     <TrendingUp className="h-4 w-4 text-red-500" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl font-bold">{eventos.length}</div>
-                                    <p className="text-xs text-muted-foreground mt-1">Produções registradas no EventPro</p>
+                                    <div className="text-2xl font-bold">{totalTables} Mesas</div>
+                                    <p className="text-[10px] text-muted-foreground mt-1">{totalBottles} Garrafas servidas</p>
                                 </CardContent>
                             </Card>
                         </div>
 
-                        <div className="bg-card rounded-xl border border-border p-8">
-                            <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                                <Calendar className="h-5 w-5 text-red-600" />
-                                Crescimento Global
+                        <div className="bg-card rounded-xl border border-border p-6 sm:p-8">
+                            <h3 className="text-lg font-bold mb-8 flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5 text-red-600" />
+                                Performance por Evento (Faturamento)
                             </h3>
-                            <div className="h-[300px] flex items-center justify-center border border-dashed border-border rounded-lg bg-secondary/5">
-                                <p className="text-muted-foreground text-sm">Grafico consolidado de faturamento vira aqui</p>
+
+                            <div className="space-y-6">
+                                {chartData.length > 0 ? (
+                                    chartData.map((data, idx) => (
+                                        <div key={idx} className="space-y-2">
+                                            <div className="flex justify-between items-end">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold">{data.name}</span>
+                                                    <span className="text-xs text-muted-foreground">R$ {data.value.toLocaleString()}</span>
+                                                </div>
+                                                <span className="text-xs font-bold text-muted-foreground">
+                                                    {Math.round((data.value / (totalRevenue || 1)) * 100) || 0}% de participação
+                                                </span>
+                                            </div>
+                                            <div className="h-3 w-full bg-secondary/30 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full transition-all duration-1000 ease-out rounded-full"
+                                                    style={{
+                                                        width: `${(data.value / maxChartValue) * 100}%`,
+                                                        backgroundColor: data.color,
+                                                        boxShadow: `0 0 10px ${data.color}40`
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="h-[200px] flex items-center justify-center border border-dashed border-border rounded-lg bg-secondary/5">
+                                        <p className="text-muted-foreground text-sm font-medium italic">Nenhum dado de faturamento disponível ainda.</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

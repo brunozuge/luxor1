@@ -62,8 +62,10 @@ export function ColaboradoresModule() {
     addColaborador,
     updateColaborador,
     removeColaborador,
-    loading,
+    fetchedModules,
   } = useEventData()
+
+  const isLoading = !fetchedModules.has("colaboradores")
 
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -228,7 +230,8 @@ export function ColaboradoresModule() {
                   id="tel"
                   value={form.telefone}
                   onChange={(e) => {
-                    setForm({ ...form, telefone: e.target.value })
+                    const onlyNums = e.target.value.replace(/\D/g, "")
+                    setForm({ ...form, telefone: onlyNums })
                     if (errors.telefone) setErrors(prev => ({ ...prev, telefone: false }))
                   }}
                   placeholder="(00) 00000-0000"
@@ -260,7 +263,7 @@ export function ColaboradoresModule() {
         {[1, 2, 3].map((i) => (
           <Card key={i} className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              {loading && colaboradores.length === 0 ? (
+              {isLoading && colaboradores.length === 0 ? (
                 <>
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-4" />
@@ -283,7 +286,7 @@ export function ColaboradoresModule() {
               )}
             </CardHeader>
             <CardContent>
-              {loading && colaboradores.length === 0 ? (
+              {isLoading && colaboradores.length === 0 ? (
                 <Skeleton className="h-8 w-16" />
               ) : i === 1 ? (
                 <div className="text-2xl font-bold">{colaboradores.length}</div>
@@ -339,7 +342,7 @@ export function ColaboradoresModule() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading && colaboradores.length === 0 ? (
+              {isLoading && colaboradores.length === 0 ? (
                 [1, 2, 3, 4, 5].map((i) => (
                   <TableRow key={i} className="border-border">
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
@@ -422,7 +425,7 @@ export function ColaboradoresModule() {
                   </TableRow>
                 ))
               )}
-              {!loading && filtered.length === 0 && (
+              {!isLoading && filtered.length === 0 && (
                 <TableRow>
                   <TableCell
                     colSpan={7}

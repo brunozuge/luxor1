@@ -25,8 +25,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
     const [loading, setLoading] = useState(false)
     const [formData, setFormData] = useState({
         nome: "",
-        cor_primaria: "#3b82f6",
-        cor_secundaria: "#1d4ed8",
+        cor_primaria: "#ef4444",
     })
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -35,10 +34,10 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
 
         setLoading(true)
         try {
-            await addEvento({ ...formData, logo: null })
+            await addEvento({ ...formData, cor_secundaria: formData.cor_primaria, logo: null })
             toast.success("Evento criado com sucesso!")
             onOpenChange(false)
-            setFormData({ nome: "", cor_primaria: "#3b82f6", cor_secundaria: "#1d4ed8" })
+            setFormData({ nome: "", cor_primaria: "#ef4444" })
         } catch (error) {
             console.error(error)
             toast.error("Erro ao criar evento")
@@ -49,7 +48,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="w-[95vw] sm:max-w-[425px] overflow-y-auto max-h-[90vh]">
+            <DialogContent className="w-[95vw] sm:max-w-[425px] overflow-y-auto max-h-[90vh] bg-card text-card-foreground">
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
                         <DialogTitle>Criar Novo Evento</DialogTitle>
@@ -64,50 +63,31 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
                                 onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="primary">Cor Primária</Label>
-                                <div className="flex gap-2">
-                                    <Input
-                                        id="primary"
-                                        type="color"
-                                        className="h-10 w-12 p-1"
-                                        value={formData.cor_primaria}
-                                        onChange={(e) => setFormData({ ...formData, cor_primaria: e.target.value })}
-                                    />
-                                    <Input
-                                        className="flex-1"
-                                        value={formData.cor_primaria}
-                                        onChange={(e) => setFormData({ ...formData, cor_primaria: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="secondary">Cor Secundária</Label>
-                                <div className="flex gap-2">
-                                    <Input
-                                        id="secondary"
-                                        type="color"
-                                        className="h-10 w-12 p-1"
-                                        value={formData.cor_secundaria}
-                                        onChange={(e) => setFormData({ ...formData, cor_secundaria: e.target.value })}
-                                    />
-                                    <Input
-                                        className="flex-1"
-                                        value={formData.cor_secundaria}
-                                        onChange={(e) => setFormData({ ...formData, cor_secundaria: e.target.value })}
-                                    />
-                                </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="primary">Cor do Evento</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    id="primary"
+                                    type="color"
+                                    className="h-10 w-12 p-1"
+                                    value={formData.cor_primaria}
+                                    onChange={(e) => setFormData({ ...formData, cor_primaria: e.target.value })}
+                                />
+                                <Input
+                                    className="flex-1"
+                                    value={formData.cor_primaria}
+                                    onChange={(e) => setFormData({ ...formData, cor_primaria: e.target.value })}
+                                />
                             </div>
                         </div>
 
                         <div className="mt-2 flex items-center gap-3 rounded-lg border border-dashed border-border p-4 bg-muted/30">
                             <div className="p-2 rounded-md" style={{ backgroundColor: formData.cor_primaria }}>
-                                <Palette className="h-5 w-5" style={{ color: formData.cor_secundaria }} />
+                                <Palette className="h-5 w-5 text-white" />
                             </div>
                             <div className="text-sm">
                                 <p className="font-medium">Visualização</p>
-                                <p className="text-muted-foreground text-xs">As cores serão aplicadas em todo o sistema.</p>
+                                <p className="text-muted-foreground text-xs">Esta cor será usada para identificar sua festa.</p>
                             </div>
                         </div>
                     </div>

@@ -57,7 +57,8 @@ const paymentLabels: Record<PaymentMethod, string> = {
 }
 
 export function IngressosModule() {
-  const { tickets, pessoas, addTicket, colaboradores, loading } = useEventData()
+  const { tickets, pessoas, addTicket, colaboradores, fetchedModules } = useEventData()
+  const isLoading = !fetchedModules.has("tickets")
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
@@ -252,7 +253,7 @@ export function IngressosModule() {
         {[1, 2, 3, 4].map((i) => (
           <Card key={i} className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              {loading && tickets.length === 0 ? (
+              {isLoading && tickets.length === 0 ? (
                 <>
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-4" />
@@ -280,7 +281,7 @@ export function IngressosModule() {
               )}
             </CardHeader>
             <CardContent>
-              {loading && tickets.length === 0 ? (
+              {isLoading && tickets.length === 0 ? (
                 <Skeleton className="h-8 w-16" />
               ) : i === 1 ? (
                 <div className="text-2xl font-bold">{tickets.length}</div>
@@ -322,7 +323,7 @@ export function IngressosModule() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading && tickets.length === 0 ? (
+              {isLoading && tickets.length === 0 ? (
                 [1, 2, 3, 4, 5].map((i) => (
                   <TableRow key={i} className="border-border">
                     <TableCell><Skeleton className="h-4 w-12" /></TableCell>
@@ -357,7 +358,7 @@ export function IngressosModule() {
                   )
                 })
               )}
-              {!loading && filtered.length === 0 && (
+              {!isLoading && filtered.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Nenhum ingresso encontrado

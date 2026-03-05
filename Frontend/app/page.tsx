@@ -31,16 +31,16 @@ const sectionTitles: Record<string, string> = {
 }
 
 function DataFetcher({ activeSection }: { activeSection: string }) {
-  const { fetchData, fetchedModules } = useEventData()
+  const { fetchData, fetchedModules, selectedEventId } = useEventData()
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Only trigger on section change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Only trigger on section change or event change
   useEffect(() => {
     const sectionModules: Record<string, any[]> = {
       dashboard: ["pessoas", "tickets", "products", "barSales", "colaboradores", "camaroteTables"],
       pessoas: ["pessoas"],
       lista: ["listas"],
-      ingressos: ["ingressos", "pessoas", "colaboradores"],
-      portaria: ["ingressos", "pessoas"],
+      ingressos: ["tickets", "pessoas", "colaboradores"],
+      portaria: ["tickets", "pessoas"],
       bar: ["barSales", "products", "colaboradores"],
       camarote: ["camaroteTables", "pessoas"],
       colaboradores: ["colaboradores"],
@@ -51,7 +51,7 @@ function DataFetcher({ activeSection }: { activeSection: string }) {
     const needsLoading = modules.some(m => !fetchedModules.has(m))
 
     fetchData(!needsLoading, modules as any)
-  }, [activeSection, fetchData])
+  }, [activeSection, fetchData, selectedEventId])
 
   return null
 }

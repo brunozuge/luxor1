@@ -28,4 +28,9 @@ class Evento extends Model
     {
         return $this->hasMany(Colaborador::class);
     }
+
+    public function mesasCamarote()
+    {
+        return $this->hasMany(MesaCamarote::class);
+    }
 }

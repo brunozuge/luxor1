@@ -40,14 +40,16 @@ export function CamaroteModule() {
     removeGarrafaFromCamarote,
     colaboradores,
     products,
-    loading,
+    fetchedModules,
   } = useEventData()
+
+  const isLoading = !fetchedModules.has("camaroteTables")
 
   const [tableDialogOpen, setTableDialogOpen] = useState(false)
   const [garrafaDialogOpen, setGarrafaDialogOpen] = useState(false)
   const [addPersonDialogOpen, setAddPersonDialogOpen] = useState(false)
   const [selectedTableId, setSelectedTableId] = useState("")
-  const [tableForm, setTableForm] = useState({ nome: "", garcom: "" })
+  const [tableForm, setTableForm] = useState({ nome: "", garcom: "", cor_pulseira: "" })
   const [garrafaForm, setGarrafaForm] = useState("")
   const [personForm, setPersonForm] = useState("")
   const [editingTableId, setEditingTableId] = useState<string | null>(null)
@@ -92,7 +94,7 @@ export function CamaroteModule() {
     } else {
       addCamaroteTable(tableForm)
     }
-    setTableForm({ nome: "", garcom: "" })
+    setTableForm({ nome: "", garcom: "", cor_pulseira: "" })
     setEditingTableId(null)
     setErrors({})
     setTableDialogOpen(false)
@@ -100,7 +102,7 @@ export function CamaroteModule() {
 
   function openEditTable(table: any) {
     setEditingTableId(table.id)
-    setTableForm({ nome: table.nome, garcom: table.garcom })
+    setTableForm({ nome: table.nome, garcom: table.garcom, cor_pulseira: table.cor_pulseira || "" })
     setTableDialogOpen(true)
   }
 
@@ -150,13 +152,13 @@ export function CamaroteModule() {
           if (!v) {
             setEditingTableId(null)
             setErrors({})
-            setTableForm({ nome: "", garcom: "" })
+            setTableForm({ nome: "", garcom: "", cor_pulseira: "" })
           }
         }}>
           <DialogTrigger asChild>
             <Button onClick={() => {
               setEditingTableId(null)
-              setTableForm({ nome: "", garcom: "" })
+              setTableForm({ nome: "", garcom: "", cor_pulseira: "" })
             }}>
               <Plus className="mr-2 h-4 w-4" />
               Nova Mesa
@@ -202,6 +204,14 @@ export function CamaroteModule() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex flex-col gap-2">
+                <Label>Cor da Pulseira</Label>
+                <Input
+                  value={tableForm.cor_pulseira}
+                  onChange={(e) => setTableForm({ ...tableForm, cor_pulseira: e.target.value })}
+                  placeholder="Ex: Dourada, Black, etc."
+                />
+              </div>
               <Button type="submit" className="w-full">{editingTableId ? "Salvar Alteracoes" : "Adicionar"}</Button>
             </form>
           </DialogContent>
@@ -212,7 +222,7 @@ export function CamaroteModule() {
         {[1, 2, 3].map((i) => (
           <Card key={i} className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              {loading && camaroteTables.length === 0 ? (
+              {isLoading && camaroteTables.length === 0 ? (
                 <>
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-4" />
@@ -235,7 +245,7 @@ export function CamaroteModule() {
               )}
             </CardHeader>
             <CardContent>
-              {loading && camaroteTables.length === 0 ? (
+              {isLoading && camaroteTables.length === 0 ? (
                 <Skeleton className="h-8 w-20" />
               ) : i === 1 ? (
                 <div className="text-2xl font-bold">{camaroteTables.length}</div>
@@ -252,7 +262,7 @@ export function CamaroteModule() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {loading && camaroteTables.length === 0 ? (
+        {isLoading && camaroteTables.length === 0 ? (
           [1, 2, 3, 4].map((i) => (
             <Card key={i} className="bg-card border-border">
               <CardHeader className="flex flex-row items-start justify-between">
@@ -294,6 +304,13 @@ export function CamaroteModule() {
                         </button>
                       )}
                     </div>
+                    {table.cor_pulseira && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-[10px] uppercase font-bold py-0 h-4 border-primary/50 text-error">
+                          Pulseira: {table.cor_pulseira}
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                   <Badge className="bg-primary text-primary-foreground">
                     R$ {tableSpend.toLocaleString("pt-BR")}

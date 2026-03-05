@@ -58,7 +58,7 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
-  const { pessoasDentro, lotacaoMaxima, eventos, selectedEventId, setSelectedEventId, currentEvento, loading, setOverlay } = useEventData()
+  const { pessoasDentro, lotacaoMaxima, eventos, selectedEventId, setSelectedEventId, currentEvento, isInitialLoad, setOverlay } = useEventData()
   const { user, logout } = useAuth()
   const { setOpenMobile } = useSidebar()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
@@ -77,7 +77,7 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
   const percentage = Math.round((pessoasDentro / lotacaoMaxima) * 100)
   const isNearCapacity = percentage >= 80
 
-  if (loading && eventos.length === 0) {
+  if (isInitialLoad && eventos.length === 0) {
     return (
       <Sidebar>
         <SidebarHeader className="px-4 py-4">
