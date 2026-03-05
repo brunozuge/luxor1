@@ -30,8 +30,11 @@ trait BelongsToEvento
 
             try {
                 $eventoId = request()->header('X-Evento-Id') ?? session('evento_id');
-                if ($eventoId) {
+                if ($eventoId && $eventoId !== 'null' && $eventoId !== 'undefined') {
                     $builder->where($builder->getQuery()->from . '.evento_id', $eventoId);
+                } else {
+                    // Força retorno vazio se não houver contexto de evento
+                    $builder->whereRaw('1 = 0');
                 }
             } catch (\Throwable $e) {
                 // Ignore in CLI or during boot

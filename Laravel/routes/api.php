@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\MesaCamaroteController;
 use App\Http\Controllers\Api\PessoaController;
 use App\Http\Controllers\Api\ProdutoController;
 use App\Http\Controllers\Api\VendaBarController;
+use App\Http\Controllers\Api\ListaController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -23,6 +24,10 @@ Route::prefix('v1')->group(function () {
 
         // Pessoas
         Route::apiResource('pessoas', PessoaController::class);
+
+        // Lista
+        Route::post('listas/bulk', [ListaController::class, 'bulkStore']);
+        Route::apiResource('listas', ListaController::class);
 
         // Ingressos
         Route::post('ingressos/{id}/check-in', [IngressoController::class, 'checkIn']);

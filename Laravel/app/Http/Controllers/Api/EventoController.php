@@ -12,7 +12,16 @@ class EventoController extends Controller
      */
     public function index()
     {
-        return auth()->user()->eventos()->get();
+        return $this->summary();
+    }
+
+    public function summary()
+    {
+        $eventos = auth()->user()->eventos()->get()->map(function ($evento) {
+            return $this->formatEvento($evento);
+        });
+
+        return response()->json($eventos);
     }
 
     public function store(Request $request)
@@ -26,12 +35,13 @@ class EventoController extends Controller
 
         $evento = auth()->user()->eventos()->create($validated);
 
-        return response()->json($evento, 201);
+        return response()->json($this->formatEvento($evento), 201);
     }
 
     public function show(string $id)
     {
-        return auth()->user()->eventos()->findOrFail($id);
+        $evento = auth()->user()->eventos()->findOrFail($id);
+        return response()->json($this->formatEvento($evento));
     }
 
     public function update(Request $request, string $id)
@@ -47,7 +57,7 @@ class EventoController extends Controller
 
         $evento->update($validated);
 
-        return response()->json($evento);
+        return response()->json($this->formatEvento($evento));
     }
 
     public function destroy(string $id)
@@ -56,5 +66,28 @@ class EventoController extends Controller
         $evento->delete();
 
         return response()->json(['message' => 'Evento excluído com sucesso']);
+    }
+
+    private function formatEvento($evento)
+    {
+        $faturamento_ingressos = $evento->ingressos()->sum('valor_pago');
+        $faturamento_bar = $evento->vendasBar()->sum('valor_total');
+        $colaboradores_count = $evento->colaboradores()->count();
+        $ingressos_count = $evento->ingressos()->count();
+
+        return [
+            'id' => $evento->id,
+            'nome' => $evento->nome,
+            'cor_primaria' => $evento->cor_primaria,
+            'cor_secundaria' => $evento->cor_secundaria,
+            'logo' => $evento->logo,
+            'stats' => [
+                'faturamento_total' => $faturamento_ingressos + $faturamento_bar,
+                'faturamento_ingressos' => $faturamento_ingressos,
+                'faturamento_bar' => $faturamento_bar,
+                'colaboradores_count' => $colaboradores_count,
+                'ingressos_count' => $ingressos_count,
+            ]
+        ];
     }
 }

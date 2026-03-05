@@ -12,6 +12,7 @@ import {
   LogOut,
   ChevronDown,
   Plus,
+  Calendar,
 } from "lucide-react"
 import {
   Sidebar,
@@ -25,6 +26,7 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { useEventData } from "@/lib/event-data"
 import { useAuth } from "@/lib/auth-context"
@@ -42,6 +44,7 @@ import {
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
   { title: "Pessoas", icon: Users, id: "pessoas" },
+  { title: "Lista", icon: Users, id: "lista" },
   { title: "Ingressos", icon: Ticket, id: "ingressos" },
   { title: "Portaria", icon: DoorOpen, id: "portaria" },
   { title: "Bar", icon: Wine, id: "bar" },
@@ -55,10 +58,21 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
-  const { pessoasDentro, lotacaoMaxima, eventos, selectedEventId, setSelectedEventId, currentEvento, loading } = useEventData()
+  const { pessoasDentro, lotacaoMaxima, eventos, selectedEventId, setSelectedEventId, currentEvento, loading, setOverlay } = useEventData()
   const { user, logout } = useAuth()
+  const { setOpenMobile } = useSidebar()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
+
+  const handleNavigate = (id: string) => {
+    onNavigate(id)
+    setOpenMobile(false)
+  }
+
+  const handleEventSelect = (id: string) => {
+    setSelectedEventId(id)
+    setOpenMobile(false)
+  }
 
   const percentage = Math.round((pessoasDentro / lotacaoMaxima) * 100)
   const isNearCapacity = percentage >= 80
@@ -115,28 +129,43 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
               <ChevronDown className="ml-auto size-4 opacity-50" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg" align="start" side="bottom" sideOffset={4}>
-            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Meus Eventos</div>
-            {eventos.map((evento) => (
-              <DropdownMenuItem
-                key={evento.id}
-                className="gap-2 cursor-pointer"
-                onClick={() => setSelectedEventId(evento.id)}
-              >
-                <div
-                  className="size-4 rounded-full border border-border"
-                  style={{ backgroundColor: evento.cor_primaria }}
-                />
-                <span className={selectedEventId === evento.id ? "font-bold" : ""}>{evento.nome}</span>
-                {selectedEventId === evento.id && <div className="ml-auto size-1.5 rounded-full bg-primary" />}
-              </DropdownMenuItem>
-            ))}
+          <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg p-2 space-y-1" align="start" side="bottom" sideOffset={4}>
+            <DropdownMenuItem
+              className="flex items-center gap-3 p-3 cursor-pointer rounded-lg hover:bg-red-50 focus:bg-red-50"
+              onClick={() => {
+                setOverlay("festas")
+              }}
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600/10 text-red-600">
+                <Calendar className="size-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">Festas</span>
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Trocar ou Criar</span>
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              className="flex items-center gap-3 p-3 cursor-pointer rounded-lg hover:bg-red-50 focus:bg-red-50"
+              onClick={() => {
+                setOverlay("eventpro")
+              }}
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600/10 text-red-600">
+                <Crown className="size-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">EventPro</span>
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Relatório Geral</span>
+              </div>
+            </DropdownMenuItem>
+
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setShowCreateModal(true)}>
+            <DropdownMenuItem className="gap-2 cursor-pointer p-3" onClick={() => setShowCreateModal(true)}>
               <div className="flex size-6 items-center justify-center rounded-md border bg-background">
                 <Plus className="size-4" />
               </div>
-              <span className="font-medium">Criar Evento</span>
+              <div className="font-medium text-sm">Nova Produção</div>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -151,7 +180,7 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
                 <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton
                     isActive={activeSection === item.id}
-                    onClick={() => onNavigate(item.id)}
+                    onClick={() => handleNavigate(item.id)}
                     tooltip={item.title}
                   >
                     <item.icon className="h-4 w-4" />

@@ -72,12 +72,25 @@ export interface CamaroteTable {
   pessoaIds: string[]
 }
 
+export interface ListaItem {
+  id: string
+  nome: string
+  descricao: string
+}
+
 export interface Evento {
   id: string
   nome: string
   cor_primaria: string
   cor_secundaria: string
   logo: string | null
+  stats?: {
+    faturamento_total: number
+    faturamento_ingressos: number
+    faturamento_bar: number
+    colaboradores_count: number
+    ingressos_count: number
+  }
 }
 
 export interface EventData {
@@ -89,6 +102,7 @@ export interface EventData {
   colaboradores: Colaborador[]
   lotacaoMaxima: number
   eventos: Evento[]
+  listas: ListaItem[]
 }
 
 interface EventContextType extends EventData {
@@ -128,8 +142,13 @@ interface EventContextType extends EventData {
   addPessoaToCamarote: (tableId: string, pessoaId: string) => Promise<void>
   removePessoaFromCamarote: (tableId: string, pessoaId: string) => Promise<void>
   removeGarrafaFromCamarote: (tableId: string, index: number) => Promise<void>
+  addListaItem: (item: Omit<ListaItem, "id">) => Promise<void>
+  updateListaItem: (id: string, item: Partial<ListaItem>) => Promise<void>
+  removeListaItem: (id: string) => Promise<void>
   setLotacaoMaxima: (n: number) => void
   pessoasDentro: number
+  overlay: "none" | "festas" | "eventpro"
+  setOverlay: (v: "none" | "festas" | "eventpro") => void
 }
 
 const EventContext = createContext<EventContextType | null>(null)
@@ -151,7 +170,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     camaroteTables: [],
     colaboradores: [],
     lotacaoMaxima: 500,
-    eventos: []
+    eventos: [],
+    listas: []
   })
   const [loading, setLoading] = useState(false)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
@@ -187,6 +207,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       barSales: [],
       camaroteTables: [],
       colaboradores: [],
+      listas: [],
     }))
 
     if (id) {
@@ -195,6 +216,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("selected_evento_id")
     }
   }
+
+  const [overlay, setOverlay] = useState<"none" | "festas" | "eventpro">("none")
 
   useEffect(() => {
     const saved = localStorage.getItem("selected_evento_id")
@@ -222,13 +245,17 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           nome: e.nome,
           cor_primaria: e.cor_primaria,
           cor_secundaria: e.cor_secundaria,
-          logo: e.logo
+          logo: e.logo,
+          stats: e.stats
         }))
       }))
       if (eventos.length > 0) {
         const isValid = eventos.some((e: any) => String(e.id) === String(selectedEventId))
         if (!selectedEventId || !isValid) {
           setSelectedEventId(String(eventos[0].id))
+        } else {
+          // If we have a valid selectedEventId, fetch its data
+          fetchData()
         }
       }
     } catch (err) {
@@ -238,24 +265,21 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [token, selectedEventId])
 
-  const fetchData = useCallback(async (quiet = false, modules?: (keyof EventData)[]) => {
+  const fetchData = useCallback(async (isSilent = false, modules?: (keyof EventData)[]) => {
     if (!token || !selectedEventId) return
+    const currentFetchEventId = selectedEventId
 
-    // Show loading if any of the requested modules hasn't been fetched yet
-    const anyNewModule = modules
-      ? modules.some(m => !fetchedModulesRef.current.has(m))
-      : isInitialLoadRef.current
-
-    if (!quiet && anyNewModule) setLoading(true)
+    if (!isSilent) setLoading(true)
 
     try {
-      const allModules: { key: keyof EventData; url: string }[] = [
-        { key: "pessoas", url: `${API_URL}/pessoas` },
-        { key: "tickets", url: `${API_URL}/ingressos` },
-        { key: "products", url: `${API_URL}/produtos` },
-        { key: "barSales", url: `${API_URL}/vendas-bar` },
-        { key: "colaboradores", url: `${API_URL}/colaboradores` },
-        { key: "camaroteTables", url: `${API_URL}/mesas-camarote` },
+      const allModules = [
+        { key: "pessoas" as keyof EventData, url: `${API_URL}/pessoas` },
+        { key: "tickets" as keyof EventData, url: `${API_URL}/ingressos` },
+        { key: "products" as keyof EventData, url: `${API_URL}/produtos` },
+        { key: "barSales" as keyof EventData, url: `${API_URL}/vendas-bar` },
+        { key: "colaboradores" as keyof EventData, url: `${API_URL}/colaboradores` },
+        { key: "camaroteTables" as keyof EventData, url: `${API_URL}/mesas-camarote` },
+        { key: "listas" as keyof EventData, url: `${API_URL}/listas` },
       ]
 
       const modulesToFetch = modules
@@ -265,102 +289,113 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       const headers = {
         Authorization: `Bearer ${token}`,
         Accept: "application/json",
-        "X-Evento-Id": selectedEventId
+        "X-Evento-Id": String(selectedEventId)
       }
 
-      const responses = await Promise.all(
-        modulesToFetch.map(m => fetch(m.url, { headers }))
-      )
+      await Promise.all(
+        modulesToFetch.map(async (m) => {
+          try {
+            const res = await fetch(m.url, { headers })
 
-      for (const res of responses) {
-        if (!res.ok) {
-          if (res.status === 401) return
-          throw new Error(`API Error: ${res.statusText} (${res.url})`)
-        }
-      }
+            // Verificacao de segurança: se o evento mudou enquanto a bosta da requisição tava rolando, ignora
+            if (selectedEventId !== currentFetchEventId) return
 
-      await Promise.all(responses.map(async (res, index) => {
-        const json = await res.json()
-        const m = modulesToFetch[index]
+            if (!res.ok) {
+              if (res.status === 401) return
+              console.error(`API Error for ${m.key}: ${res.statusText} (${res.url})`)
+              setFetchedModules(prev => new Set(prev).add(m.key))
+              return
+            }
 
-        let transformed: any = json
-        if (m.key === "pessoas") {
-          transformed = json.map((p: any) => ({
-            id: String(p.id),
-            nome: p.nome,
-            instagram: p.instagram || "",
-            cpfRg: p.cpf_rg || "",
-            dataNascimento: p.data_nascimento || "",
-            tipoIngresso: p.tipo_ingresso as TicketType,
-            observacao: p.observacao || "",
-            createdAt: p.created_at
-          }))
-        } else if (m.key === "tickets") {
-          transformed = json.map((i: any) => ({
-            id: String(i.id),
-            numero: i.numero,
-            lote: i.lote || "",
-            valorPago: Number(i.valor_pago),
-            vendedor: i.vendedor || "",
-            formaPagamento: i.forma_pagamento as PaymentMethod,
-            pessoaId: String(i.pessoa_id),
-            entrou: Boolean(i.entrou),
-            horaEntrada: i.hora_entrada,
-            pulseira: i.pulseira as WristbandColor
-          }))
-        } else if (m.key === "products") {
-          transformed = json.map((p: any) => ({
-            id: String(p.id),
-            nome: p.nome,
-            custo: Number(p.custo),
-            precoVenda: Number(p.preco_venda),
-            estoqueInicial: p.estoque_inicial,
-            estoqueAtual: p.estoque_atual
-          }))
-        } else if (m.key === "barSales") {
-          transformed = json.map((v: any) => ({
-            id: String(v.id),
-            productId: String(v.produto_id),
-            pessoaId: String(v.pessoa_id),
-            vendedor: v.vendedor || "",
-            quantidade: v.quantidade,
-            valorTotal: Number(v.valor_total),
-            hora: v.hora
-          }))
-        } else if (m.key === "colaboradores") {
-          transformed = json.map((c: any) => ({
-            id: String(c.id),
-            nome: c.nome,
-            cargo: c.cargo as CargoColaborador,
-            telefone: c.telefone || "",
-            ativo: Boolean(c.ativo)
-          }))
-        } else if (m.key === "camaroteTables") {
-          transformed = json.map((m: any) => ({
-            id: String(m.id),
-            nome: m.nome,
-            garcom: m.garcom || "",
-            garrafas: m.garrafas || [],
-            pessoaIds: m.pessoas?.map((p: any) => String(p.id)) || []
-          }))
-        }
+            const json = await res.json()
+            let transformed: any = json
 
-        setData(prev => ({ ...prev, [m.key]: transformed }))
-        setFetchedModules(prev => {
-          if (prev.has(m.key)) return prev
-          const next = new Set(prev)
-          next.add(m.key)
-          return next
+            if (m.key === "pessoas") {
+              transformed = json.map((p: any) => ({
+                id: String(p.id),
+                nome: p.nome,
+                instagram: p.instagram || "",
+                cpfRg: p.cpf_rg || "",
+                dataNascimento: p.data_nascimento || "",
+                tipoIngresso: p.tipo_ingresso as TicketType,
+                observacao: p.observacao || "",
+                createdAt: p.created_at
+              }))
+            } else if (m.key === "tickets") {
+              transformed = json.map((i: any) => ({
+                id: String(i.id),
+                numero: i.numero,
+                lote: i.lote || "",
+                valorPago: Number(i.valor_pago),
+                vendedor: i.vendedor || "",
+                formaPagamento: i.forma_pagamento as PaymentMethod,
+                pessoaId: String(i.pessoa_id),
+                entrou: Boolean(i.entrou),
+                horaEntrada: i.hora_entrada,
+                pulseira: i.pulseira as WristbandColor
+              }))
+            } else if (m.key === "products") {
+              transformed = json.map((p: any) => ({
+                id: String(p.id),
+                nome: p.nome,
+                custo: Number(p.custo),
+                precoVenda: Number(p.preco_venda),
+                estoqueInicial: p.estoque_inicial,
+                estoqueAtual: p.estoque_atual
+              }))
+            } else if (m.key === "barSales") {
+              transformed = json.map((v: any) => ({
+                id: String(v.id),
+                productId: String(v.produto_id),
+                pessoaId: String(v.pessoa_id),
+                vendedor: v.vendedor || "",
+                quantidade: v.quantidade,
+                valorTotal: Number(v.valor_total),
+                hora: v.hora
+              }))
+            } else if (m.key === "colaboradores") {
+              transformed = json.map((c: any) => ({
+                id: String(c.id),
+                nome: c.nome,
+                cargo: c.cargo as CargoColaborador,
+                telefone: c.telefone || "",
+                ativo: Boolean(c.ativo)
+              }))
+            } else if (m.key === "camaroteTables") {
+              transformed = json.map((mt: any) => ({
+                id: String(mt.id),
+                nome: mt.nome,
+                garcom: mt.garcom || "",
+                garrafas: mt.garrafas || [],
+                pessoaIds: mt.pessoas?.map((p: any) => String(p.id)) || []
+              }))
+            } else if (m.key === "listas") {
+              transformed = json.map((l: any) => ({
+                id: String(l.id),
+                nome: l.nome,
+                descricao: l.descricao || ""
+              }))
+            }
+
+            setData(prev => ({ ...prev, [m.key]: transformed }))
+            setFetchedModules(prev => new Set(prev).add(m.key))
+          } catch (error) {
+            console.error(`Failed to load ${m.key}:`, error)
+            setFetchedModules(prev => new Set(prev).add(m.key))
+          }
         })
-      }))
+      )
 
       if (!modules || modules.length === allModules.length) {
         setIsInitialLoad(false)
       }
     } catch (error) {
-      console.error("Error fetching data:", error)
+      console.error("Error in fetchData:", error)
     } finally {
-      setLoading(false)
+      // Outra checagem antes de tirar o loading
+      if (selectedEventId === currentFetchEventId) {
+        setLoading(false)
+      }
     }
   }, [token, selectedEventId]) // Removed isInitialLoad to avoid loop
 
@@ -372,61 +407,112 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
 
 
   const addEvento = useCallback(async (e: Omit<Evento, "id">) => {
-    const res = await fetch(`${API_URL}/eventos`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify(e)
-    })
-    if (!res.ok) throw new Error("Erro ao criar evento")
-    const newEvento = await res.json()
-    setData(prev => ({ ...prev, eventos: [...prev.eventos, newEvento] }))
-    setSelectedEventId(String(newEvento.id))
-    return newEvento
-  }, [token])
+    const tempId = `temp-${Date.now()}`
+    const previousEventos = data.eventos
+    const optimisticEvento: Evento = { ...e, id: tempId, stats: { faturamento_total: 0, faturamento_ingressos: 0, faturamento_bar: 0, colaboradores_count: 0, ingressos_count: 0 } }
+
+    setData(prev => ({ ...prev, eventos: [...prev.eventos, optimisticEvento] }))
+    toast.success("Evento criado com sucesso!")
+
+    try {
+      const res = await fetch(`${API_URL}/eventos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(e)
+      })
+      if (!res.ok) throw new Error("Erro ao criar evento")
+      const newEvento = await res.json()
+      setData(prev => ({
+        ...prev,
+        eventos: prev.eventos.map(ev => ev.id === tempId ? newEvento : ev)
+      }))
+      setSelectedEventId(String(newEvento.id))
+      return newEvento
+    } catch (error) {
+      console.error(error)
+      setData(prev => ({ ...prev, eventos: previousEventos }))
+      toast.error("Erro ao realizar tarefa no banco")
+      throw error
+    }
+  }, [token, setSelectedEventId, data.eventos])
 
   const updateEvento = useCallback(async (id: string, e: Partial<Evento>) => {
-    const res = await fetch(`${API_URL}/eventos/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify(e)
-    })
-    if (!res.ok) throw new Error("Erro ao atualizar evento")
-    const updated = await res.json()
+    const previousEventos = data.eventos
     setData(prev => ({
       ...prev,
-      eventos: prev.eventos.map(x => String(x.id) === id ? updated : x)
+      eventos: prev.eventos.map(x => String(x.id) === id ? { ...x, ...e } : x)
     }))
-  }, [token])
+    toast.success("Evento atualizado!")
+
+    try {
+      const res = await fetch(`${API_URL}/eventos/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(e)
+      })
+      if (!res.ok) throw new Error("Erro ao atualizar evento")
+      const updated = await res.json()
+      setData(prev => ({
+        ...prev,
+        eventos: prev.eventos.map(x => String(x.id) === id ? updated : x)
+      }))
+    } catch (error) {
+      console.error(error)
+      setData(prev => ({ ...prev, eventos: previousEventos }))
+      toast.error("Erro ao realizar tarefa no banco")
+      throw error
+    }
+  }, [token, data.eventos])
 
   const removeEvento = useCallback(async (id: string) => {
-    const res = await fetch(`${API_URL}/eventos/${id}`, {
-      method: "DELETE",
-      headers: {
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`
-      }
-    })
-    if (!res.ok) throw new Error("Erro ao remover evento")
+    const previousEventos = data.eventos
     setData(prev => ({
       ...prev,
       eventos: prev.eventos.filter(x => String(x.id) !== id)
     }))
-    if (selectedEventId === id) setSelectedEventId(null)
-  }, [token, selectedEventId])
+
+    toast.success("Evento removido com sucesso")
+
+    try {
+      const res = await fetch(`${API_URL}/eventos/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.message || "Erro ao remover evento")
+      }
+
+      if (String(selectedEventId) === String(id)) {
+        localStorage.removeItem("selected_evento_id")
+        window.location.reload() // Reload is safer for "global" cleanup when a main event is deleted
+      }
+    } catch (error: any) {
+      console.error(error)
+      setData(prev => ({ ...prev, eventos: previousEventos }))
+      toast.error(error.message || "Falha ao remover evento no banco")
+    }
+  }, [token, selectedEventId, data.eventos])
 
   const addPessoa = useCallback(async (p: Omit<Person, "id" | "createdAt">) => {
     const tempId = `temp-${Date.now()}`
     const optimisticPerson: Person = { ...p, id: tempId, createdAt: new Date().toISOString() }
+    const previousPessoas = data.pessoas
 
     setData(prev => ({ ...prev, pessoas: [optimisticPerson, ...prev.pessoas] }))
+    toast.success("Pessoa cadastrada!")
 
     try {
       const res = await fetch(`${API_URL}/pessoas`, {
@@ -435,7 +521,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         },
         body: JSON.stringify({
           nome: p.nome,
@@ -446,7 +532,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           observacao: p.observacao
         })
       })
-      if (!res.ok) throw new Error("Erro ao cadastrar pessoa")
+      if (!res.ok) throw new Error("Erro banco")
       const newItem = await res.json()
 
       setData(prev => ({
@@ -456,18 +542,19 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       return String(newItem.id)
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao cadastrar pessoa")
-      fetchData(true, ["pessoas"])
+      setData(prev => ({ ...prev, pessoas: previousPessoas }))
+      toast.error("Erro ao realizar tarefa no banco")
       return ""
     }
-  }, [token, selectedEventId, fetchData])
+  }, [token, selectedEventId, data.pessoas])
 
   const updatePessoa = useCallback(async (id: string, p: Partial<Person>) => {
-    // Optimistic update
+    const previousPessoas = data.pessoas
     setData(prev => ({
       ...prev,
       pessoas: prev.pessoas.map(x => x.id === id ? { ...x, ...p } : x)
     }))
+    toast.success("Pessoa atualizada!")
 
     const body: any = {}
     if (p.nome !== undefined) body.nome = p.nome
@@ -484,40 +571,43 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         },
         body: JSON.stringify(body)
       })
-      if (!res.ok) throw new Error("Erro ao atualizar pessoa")
+      if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao atualizar pessoa")
-      fetchData(true, ["pessoas"])
+      setData(prev => ({ ...prev, pessoas: previousPessoas }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData])
+  }, [token, selectedEventId, data.pessoas])
 
   const removePessoa = useCallback(async (id: string) => {
-    // Optimistic update
+    const previousPessoas = data.pessoas
     setData(prev => ({ ...prev, pessoas: prev.pessoas.filter(x => x.id !== id) }))
+    toast.success("Pessoa removida")
+
     try {
       const res = await fetch(`${API_URL}/pessoas/${id}`, {
         method: "DELETE",
         headers: {
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         }
       })
-      if (!res.ok) throw new Error("Erro ao remover")
+      if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao remover pessoa")
-      fetchData(true, ["pessoas"])
+      setData(prev => ({ ...prev, pessoas: previousPessoas }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData])
+  }, [token, selectedEventId, data.pessoas])
 
   const addTicket = useCallback(async (t: Omit<Ticket, "id" | "entrou" | "horaEntrada" | "pulseira">) => {
     const tempId = `temp-${Date.now()}`
+    const previousTickets = data.tickets
     const optimisticTicket: Ticket = {
       ...t,
       id: tempId,
@@ -526,8 +616,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       pulseira: null
     }
 
-    // Optimistic update
     setData(prev => ({ ...prev, tickets: [optimisticTicket, ...prev.tickets] }))
+    toast.success("Ingresso criado!")
 
     try {
       const res = await fetch(`${API_URL}/ingressos`, {
@@ -536,7 +626,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         },
         body: JSON.stringify({
           numero: t.numero,
@@ -547,23 +637,28 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           pessoa_id: t.pessoaId
         })
       })
-      if (!res.ok) throw new Error("Erro ingresso")
-      fetchData(true, ["tickets"])
+      if (!res.ok) throw new Error("Erro banco")
+      const newItem = await res.json()
+      setData(prev => ({
+        ...prev,
+        tickets: prev.tickets.map(tic => tic.id === tempId ? { ...tic, id: String(newItem.id) } : tic)
+      }))
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao criar ingresso")
-      fetchData(true, ["tickets"])
+      setData(prev => ({ ...prev, tickets: previousTickets }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData])
+  }, [token, selectedEventId, data.tickets])
 
   const marcarEntrada = useCallback(async (ticketId: string, pulseira: WristbandColor) => {
+    const previousTickets = data.tickets
     const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
 
-    // Optimistic update
     setData(prev => ({
       ...prev,
       tickets: prev.tickets.map(t => t.id === ticketId ? { ...t, entrou: true, horaEntrada: now, pulseira } : t)
     }))
+    toast.success("Check-in realizado!")
 
     try {
       const res = await fetch(`${API_URL}/ingressos/${ticketId}/check-in`, {
@@ -572,23 +667,25 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         },
         body: JSON.stringify({ pulseira })
       })
-      if (!res.ok) throw new Error("Erro check-in")
+      if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao marcar entrada")
-      fetchData(true, ["tickets"])
+      setData(prev => ({ ...prev, tickets: previousTickets }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData])
+  }, [token, selectedEventId, data.tickets])
 
   const addProduct = useCallback(async (p: Omit<Product, "id" | "estoqueAtual">) => {
     const tempId = `temp-${Date.now()}`
+    const previousProducts = data.products
     const optimisticProduct: Product = { ...p, id: tempId, estoqueAtual: p.estoqueInicial }
 
     setData(prev => ({ ...prev, products: [...prev.products, optimisticProduct] }))
+    toast.success("Produto adicionado!")
 
     try {
       const res = await fetch(`${API_URL}/produtos`, {
@@ -597,7 +694,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         },
         body: JSON.stringify({
           nome: p.nome,
@@ -606,21 +703,21 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           estoque_inicial: p.estoqueInicial
         })
       })
-      if (!res.ok) throw new Error("Erro produto")
+      if (!res.ok) throw new Error("Erro banco")
       const realProduct = await res.json()
-
       setData(prev => ({
         ...prev,
         products: prev.products.map(prod => prod.id === tempId ? { ...prod, id: String(realProduct.id) } : prod)
       }))
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao criar produto")
-      fetchData(true, ["products"])
+      setData(prev => ({ ...prev, products: previousProducts }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData])
+  }, [token, selectedEventId, data.products])
 
   const addProducts = useCallback(async (ps: Omit<Product, "id" | "estoqueAtual">[]) => {
+    const previousProducts = data.products
     const tempProducts: Product[] = ps.map((p, idx) => ({
       ...p,
       id: `temp-bulk-${Date.now()}-${idx}`,
@@ -628,6 +725,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }))
 
     setData(prev => ({ ...prev, products: [...prev.products, ...tempProducts] }))
+    toast.success("Produtos adicionados!")
 
     try {
       const res = await fetch(`${API_URL}/produtos/bulk`, {
@@ -636,7 +734,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         },
         body: JSON.stringify({
           products: ps.map(p => ({
@@ -647,26 +745,27 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           }))
         })
       })
-      if (!res.ok) throw new Error("Erro bulk produtos")
+      if (!res.ok) throw new Error("Erro banco")
       fetchData(true, ["products"])
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao criar produtos")
-      fetchData(true, ["products"])
+      setData(prev => ({ ...prev, products: previousProducts }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData])
+  }, [token, selectedEventId, data.products, fetchData])
 
   const updateProduct = useCallback(async (id: string, p: Partial<Product>) => {
-    // Optimistic update
+    const previousProducts = data.products
     setData(prev => ({
       ...prev,
       products: prev.products.map(x => x.id === id ? { ...x, ...p } : x)
     }))
+    toast.success("Produto atualizado!")
 
     const body: any = {}
     if (p.nome !== undefined) body.nome = p.nome
     if (p.custo !== undefined) body.custo = p.custo
-    if (p.precoVenda !== undefined) body.preco_venda = p.precoVenda
+    if (p.precoVenda !== undefined) body.preco_venda = p.precoVenda  // camelCase in frontend maps to snake_case in backend
     if (p.estoqueInicial !== undefined) body.estoque_inicial = p.estoqueInicial
     if (p.estoqueAtual !== undefined) body.estoque_atual = p.estoqueAtual
 
@@ -677,57 +776,56 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         },
         body: JSON.stringify(body)
       })
-      if (!res.ok) throw new Error("Erro atualizar produto")
+      if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao atualizar produto")
-      fetchData(true, ["products"])
+      setData(prev => ({ ...prev, products: previousProducts }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData])
+  }, [token, selectedEventId, data.products])
 
   const removeProduct = useCallback(async (id: string) => {
-    // Optimistic update
+    const previousProducts = data.products
     setData(prev => ({ ...prev, products: prev.products.filter(x => x.id !== id) }))
+    toast.success("Produto removido")
+
     try {
       const res = await fetch(`${API_URL}/produtos/${id}`, {
         method: "DELETE",
         headers: {
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         }
       })
-      if (!res.ok) throw new Error("Erro remover produto")
+      if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao remover produto")
-      fetchData(true, ["products"])
+      setData(prev => ({ ...prev, products: previousProducts }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData])
+  }, [token, selectedEventId, data.products])
 
   const addBarSale = useCallback(async (s: Omit<BarSale, "id" | "hora" | "valorTotal">) => {
+    const previousBarSales = data.barSales
+    const previousProducts = data.products
     const prod = data.products.find(p => p.id === s.productId)
     const valorTotal = (prod?.precoVenda || 0) * s.quantidade
     const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
 
     const tempId = `temp-${Date.now()}`
-    const optimisticSale: BarSale = {
-      ...s,
-      id: tempId,
-      hora: now,
-      valorTotal: valorTotal
-    }
+    const optimisticSale: BarSale = { ...s, id: tempId, hora: now, valorTotal }
 
-    // Optimistic update
     setData(prev => ({
       ...prev,
       barSales: [optimisticSale, ...prev.barSales],
       products: prev.products.map(p => p.id === s.productId ? { ...p, estoqueAtual: p.estoqueAtual - s.quantidade } : p)
     }))
+    toast.success("Venda registrada!")
 
     try {
       const res = await fetch(`${API_URL}/vendas-bar`, {
@@ -736,7 +834,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         },
         body: JSON.stringify({
           produto_id: s.productId,
@@ -745,23 +843,23 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           quantidade: s.quantidade
         })
       })
-      if (!res.ok) throw new Error("Erro venda bar")
+      if (!res.ok) throw new Error("Erro banco")
       const realSale = await res.json()
-
-      // Replace temp with real
       setData(prev => ({
         ...prev,
         barSales: prev.barSales.map(sale => sale.id === tempId ? { ...sale, id: String(realSale.id) } : sale)
       }))
     } catch (err) {
       console.error(err)
-      toast.error("Erro registrar venda")
-      fetchData(true, ["barSales", "products"])
+      setData(prev => ({ ...prev, barSales: previousBarSales, products: previousProducts }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData, data.products])
+  }, [token, selectedEventId, data.barSales, data.products])
 
   const addBarSales = useCallback(async (vendedor: string, items: { productId: string; quantidade: number }[], pessoaId?: string) => {
     const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    const previousBarSales = data.barSales
+    const previousProducts = data.products
     const tempSales: BarSale[] = items.map((item, idx) => {
       const prod = data.products.find(p => p.id === item.productId)
       return {
@@ -775,7 +873,6 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
-    // Optimistic update
     setData(prev => {
       const nextProducts = [...prev.products]
       for (const item of items) {
@@ -790,6 +887,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         products: nextProducts
       }
     })
+    toast.success("Vendas registradas!")
 
     try {
       const res = await fetch(`${API_URL}/vendas-bar/bulk`, {
@@ -798,7 +896,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         },
         body: JSON.stringify({
           vendedor,
@@ -809,42 +907,57 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           }))
         })
       })
-      if (!res.ok) throw new Error("Erro bulk vendas")
+      if (!res.ok) throw new Error("Erro banco")
       fetchData(true, ["barSales", "products"])
     } catch (err) {
       console.error(err)
-      toast.error("Erro registrar vendas")
-      fetchData(true, ["barSales", "products"])
+      setData(prev => ({ ...prev, barSales: previousBarSales, products: previousProducts }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData, data.products])
+  }, [token, selectedEventId, fetchData, data.products, data.barSales])
 
   const updateBarSale = useCallback(async (id: string, s: Partial<BarSale>) => {
-    const res = await fetch(`${API_URL}/vendas-bar/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Evento-Id": selectedEventId as string
-      },
-      body: JSON.stringify({
-        vendedor: s.vendedor,
-        quantidade: s.quantidade,
-        pessoa_id: s.pessoaId === "none" ? null : s.pessoaId,
+    const previousBarSales = data.barSales
+    setData(prev => ({
+      ...prev,
+      barSales: prev.barSales.map(x => x.id === id ? { ...x, ...s } : x)
+    }))
+    toast.success("Venda atualizada!")
+
+    try {
+      const res = await fetch(`${API_URL}/vendas-bar/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": String(selectedEventId)
+        },
+        body: JSON.stringify({
+          vendedor: s.vendedor,
+          quantidade: s.quantidade,
+          pessoa_id: s.pessoaId === "none" ? null : s.pessoaId,
+        })
       })
-    })
-    if (!res.ok) throw new Error("Erro atualizar venda")
-    fetchData(true, ["barSales", "products"])
-  }, [token, selectedEventId, fetchData])
+      if (!res.ok) throw new Error("Erro banco")
+      fetchData(true, ["barSales", "products"])
+    } catch (err) {
+      console.error(err)
+      setData(prev => ({ ...prev, barSales: previousBarSales }))
+      toast.error("Erro ao realizar tarefa no banco")
+    }
+  }, [token, selectedEventId, fetchData, data.barSales])
 
   const removeBarSale = useCallback(async (id: string) => {
-    // Optimistic update
+    const previousBarSales = data.barSales
+    const previousProducts = data.products
     const saleToRemove = data.barSales.find(s => s.id === id)
     setData(prev => ({
       ...prev,
       barSales: prev.barSales.filter(x => x.id !== id),
       products: saleToRemove ? prev.products.map(p => p.id === saleToRemove.productId ? { ...p, estoqueAtual: p.estoqueAtual + saleToRemove.quantidade } : p) : prev.products
     }))
+    toast.success("Venda removida")
 
     try {
       const res = await fetch(`${API_URL}/vendas-bar/${id}`, {
@@ -852,22 +965,24 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         }
       })
-      if (!res.ok) throw new Error("Erro remover venda")
+      if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao remover venda")
-      fetchData(true, ["barSales", "products"])
+      setData(prev => ({ ...prev, barSales: previousBarSales, products: previousProducts }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData, data.barSales, data.products])
+  }, [token, selectedEventId, data.barSales, data.products])
 
   const addColaborador = useCallback(async (c: Omit<Colaborador, "id">) => {
     const tempId = `temp-${Date.now()}`
+    const previousColaboradores = data.colaboradores
     const optimisticColaborador: Colaborador = { ...c, id: tempId }
 
     setData(prev => ({ ...prev, colaboradores: [...prev.colaboradores, optimisticColaborador] }))
+    toast.success("Colaborador adicionado!")
 
     try {
       const res = await fetch(`${API_URL}/colaboradores`, {
@@ -876,11 +991,11 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         },
         body: JSON.stringify(c)
       })
-      if (!res.ok) throw new Error("Erro colaborador")
+      if (!res.ok) throw new Error("Erro banco")
       const newItem = await res.json()
       setData(prev => ({
         ...prev,
@@ -888,16 +1003,18 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       }))
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao adicionar colaborador")
-      fetchData(true, ["colaboradores"])
+      setData(prev => ({ ...prev, colaboradores: previousColaboradores }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData])
+  }, [token, selectedEventId, data.colaboradores])
 
   const updateColaborador = useCallback(async (id: string, c: Partial<Colaborador>) => {
+    const previousColaboradores = data.colaboradores
     setData(prev => ({
       ...prev,
       colaboradores: prev.colaboradores.map(x => x.id === id ? { ...x, ...c } : x)
     }))
+    toast.success("Colaborador atualizado!")
 
     try {
       const res = await fetch(`${API_URL}/colaboradores/${id}`, {
@@ -906,20 +1023,22 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         },
         body: JSON.stringify(c)
       })
-      if (!res.ok) throw new Error("Erro atualizar colaborador")
+      if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao atualizar colaborador")
-      fetchData(true, ["colaboradores"])
+      setData(prev => ({ ...prev, colaboradores: previousColaboradores }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData])
+  }, [token, selectedEventId, data.colaboradores])
 
   const removeColaborador = useCallback(async (id: string) => {
+    const previousColaboradores = data.colaboradores
     setData(prev => ({ ...prev, colaboradores: prev.colaboradores.filter(x => x.id !== id) }))
+    toast.success("Colaborador removido")
 
     try {
       const res = await fetch(`${API_URL}/colaboradores/${id}`, {
@@ -927,22 +1046,24 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         }
       })
-      if (!res.ok) throw new Error("Erro remover colaborador")
+      if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao remover colaborador")
-      fetchData(true, ["colaboradores"])
+      setData(prev => ({ ...prev, colaboradores: previousColaboradores }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData])
+  }, [token, selectedEventId, data.colaboradores])
 
   const addCamaroteTable = useCallback(async (t: Omit<CamaroteTable, "id" | "pessoaIds" | "garrafas">) => {
     const tempId = `temp-${Date.now()}`
+    const previousCamaroteTables = data.camaroteTables
     const optimisticTable: CamaroteTable = { ...t, id: tempId, pessoaIds: [], garrafas: [] }
 
     setData(prev => ({ ...prev, camaroteTables: [...prev.camaroteTables, optimisticTable] }))
+    toast.success("Mesa adicionada!")
 
     try {
       const res = await fetch(`${API_URL}/mesas-camarote`, {
@@ -951,11 +1072,11 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         },
         body: JSON.stringify(t)
       })
-      if (!res.ok) throw new Error("Erro mesa")
+      if (!res.ok) throw new Error("Erro banco")
       const newItem = await res.json()
       setData(prev => ({
         ...prev,
@@ -963,16 +1084,18 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       }))
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao adicionar mesa")
-      fetchData(true, ["camaroteTables"])
+      setData(prev => ({ ...prev, camaroteTables: previousCamaroteTables }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData])
+  }, [token, selectedEventId, data.camaroteTables])
 
   const updateCamaroteTable = useCallback(async (id: string, t: Partial<CamaroteTable>) => {
+    const previousCamaroteTables = data.camaroteTables
     setData(prev => ({
       ...prev,
       camaroteTables: prev.camaroteTables.map(x => x.id === id ? { ...x, ...t } : x)
     }))
+    toast.success("Mesa atualizada!")
 
     try {
       const res = await fetch(`${API_URL}/mesas-camarote/${id}`, {
@@ -981,17 +1104,17 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${token}`,
-          "X-Evento-Id": selectedEventId as string
+          "X-Evento-Id": String(selectedEventId)
         },
         body: JSON.stringify(t)
       })
-      if (!res.ok) throw new Error("Erro atualizar mesa")
+      if (!res.ok) throw new Error("Erro banco")
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao atualizar mesa")
-      fetchData(true, ["camaroteTables"])
+      setData(prev => ({ ...prev, camaroteTables: previousCamaroteTables }))
+      toast.error("Erro ao realizar tarefa no banco")
     }
-  }, [token, selectedEventId, fetchData])
+  }, [token, selectedEventId, data.camaroteTables])
 
   const addGarrafaToCamarote = useCallback(async (tableId: string, garrafa: string) => {
     // Optimistic update
@@ -1093,6 +1216,87 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [token, selectedEventId, fetchData])
 
+  const addListaItem = useCallback(async (item: Omit<ListaItem, "id">) => {
+    const tempId = `temp-${Date.now()}`
+    const optimisticItem: ListaItem = { ...item, id: tempId }
+    const previousListas = data.listas
+
+    setData(prev => ({ ...prev, listas: [...prev.listas, optimisticItem] }))
+    toast.success("Lista criada!")
+
+    try {
+      const res = await fetch(`${API_URL}/listas`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": String(selectedEventId)
+        },
+        body: JSON.stringify(item)
+      })
+      if (!res.ok) throw new Error("Erro banco")
+      const newItem = await res.json()
+      setData(prev => ({
+        ...prev,
+        listas: prev.listas.map(i => i.id === tempId ? { ...i, id: String(newItem.id) } : i)
+      }))
+    } catch (err) {
+      console.error(err)
+      setData(prev => ({ ...prev, listas: previousListas }))
+      toast.error("Erro ao realizar tarefa no banco")
+    }
+  }, [token, selectedEventId, data.listas])
+
+  const updateListaItem = useCallback(async (id: string, item: Partial<ListaItem>) => {
+    const previousListas = data.listas
+    setData(prev => ({
+      ...prev,
+      listas: prev.listas.map(x => x.id === id ? { ...x, ...item } : x)
+    }))
+    toast.success("Lista atualizada!")
+
+    try {
+      const res = await fetch(`${API_URL}/listas/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": String(selectedEventId)
+        },
+        body: JSON.stringify(item)
+      })
+      if (!res.ok) throw new Error("Erro banco")
+    } catch (err) {
+      console.error(err)
+      setData(prev => ({ ...prev, listas: previousListas }))
+      toast.error("Erro ao realizar tarefa no banco")
+    }
+  }, [token, selectedEventId, data.listas])
+
+  const removeListaItem = useCallback(async (id: string) => {
+    const previousListas = data.listas
+    setData(prev => ({ ...prev, listas: prev.listas.filter(l => l.id !== id) }))
+    toast.success("Lista removida!")
+
+    try {
+      const res = await fetch(`${API_URL}/listas/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "X-Evento-Id": String(selectedEventId)
+        }
+      })
+      if (!res.ok) throw new Error("Erro banco")
+    } catch (err) {
+      console.error(err)
+      setData(prev => ({ ...prev, listas: previousListas }))
+      toast.error("Erro ao realizar tarefa no banco")
+    }
+  }, [token, selectedEventId, data.listas])
+
   const setLotacaoMaxima = (n: number) => setData(prev => ({ ...prev, lotacaoMaxima: n }))
 
   const pessoasDentro = data.tickets.filter(t => t.entrou).length
@@ -1133,8 +1337,13 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       addPessoaToCamarote,
       removePessoaFromCamarote,
       removeGarrafaFromCamarote,
+      addListaItem,
+      updateListaItem,
+      removeListaItem,
       setLotacaoMaxima,
       pessoasDentro,
+      overlay,
+      setOverlay,
     }}>
       <EventColorInjector />
       {children}

@@ -7,25 +7,9 @@ export function EventColorInjector() {
     const { currentEvento } = useEventData()
 
     useEffect(() => {
-        if (currentEvento) {
-            const root = document.documentElement
-
-            // We assume the user provides hex, so we'll set it directly.
-            // If the theme uses HSL chunks (like shadcn), we might need to convert.
-            // However, most browsers support setting hex to CSS variables even if they are used in HSL elsewhere,
-            // UNLESS the tailwind config specifically expects HSL chunks.
-
-            // Let's try setting the raw variable. 
-            // If it doesn't work, we'll need a hex-to-hsl converter.
-
-            root.style.setProperty("--primary", hexToHSL(currentEvento.cor_primaria))
-            root.style.setProperty("--ring", hexToHSL(currentEvento.cor_primaria))
-
-            // Optional: secondary if needed
-            if (currentEvento.cor_secundaria) {
-                root.style.setProperty("--sidebar-primary", hexToHSL(currentEvento.cor_primaria))
-            }
-        }
+        // User requested buttons to be ALWAYS red independant of event color.
+        // So we don't inject the event color into --primary anymore.
+        // We only use the event color for specific UI elements like card borders in the switcher.
     }, [currentEvento])
 
     return null

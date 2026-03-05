@@ -15,55 +15,55 @@ import { CreateEventModal } from "./create-event-modal"
 import { Skeleton } from "./ui/skeleton"
 
 export function EventSwitcher({ className }: { className?: string }) {
-    const { eventos, selectedEventId, setSelectedEventId, currentEvento, loading } = useEventData()
-    const [showCreateModal, setShowCreateModal] = useState(false)
-
-    if (loading && eventos.length === 0) {
-        return (
-            <div className="flex items-center gap-2">
-                <Skeleton className="h-8 w-32" />
-            </div>
-        )
-    }
+    const { currentEvento, setOverlay } = useEventData()
 
     return (
         <div className={className}>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-2 px-2 hover:bg-accent ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                        <div className="flex h-5 w-5 items-center justify-center rounded bg-primary text-primary-foreground">
-                            <Crown className="size-3" />
+                    <Button variant="ghost" size="sm" className="gap-2 px-2 hover:bg-accent hover:text-accent-foreground ring-offset-background transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-red-600 text-white shadow-sm shadow-red-500/20">
+                            <Crown className="size-3.5" />
                         </div>
-                        <span className="max-w-[120px] truncate text-sm font-medium">
-                            {currentEvento?.nome || "Selecionar Evento"}
-                        </span>
-                        <ChevronDown className="size-3 opacity-50" />
+                        <div className="flex flex-col items-start leading-none">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Painel</span>
+                            <span className="max-w-[120px] truncate text-sm font-semibold">
+                                {currentEvento?.nome || "Evento"}
+                            </span>
+                        </div>
+                        <ChevronDown className="size-3.5 opacity-30" />
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56">
-                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Meus Eventos</div>
-                    {eventos.map((evento) => (
-                        <DropdownMenuItem
-                            key={evento.id}
-                            className="gap-2 cursor-pointer"
-                            onClick={() => setSelectedEventId(evento.id)}
-                        >
-                            <div
-                                className="size-3 rounded-full border border-border"
-                                style={{ backgroundColor: evento.cor_primaria }}
-                            />
-                            <span className={selectedEventId === evento.id ? "font-bold" : ""}>{evento.nome}</span>
-                            {selectedEventId === evento.id && <div className="ml-auto size-1.5 rounded-full bg-primary" />}
-                        </DropdownMenuItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setShowCreateModal(true)}>
-                        <Plus className="size-4" />
-                        <span className="font-medium">Criar Evento</span>
+                <DropdownMenuContent align="start" className="w-56 p-2 space-y-1">
+                    <DropdownMenuItem
+                        className="flex items-center gap-3 p-3 cursor-pointer rounded-lg hover:bg-red-50 focus:bg-red-50"
+                        onClick={() => setOverlay("festas")}
+                    >
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600/10 text-red-600">
+                            <Calendar className="size-4" />
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="font-bold text-sm">Festas</span>
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Trocar ou Criar</span>
+                        </div>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                        className="flex items-center gap-3 p-3 cursor-pointer rounded-lg hover:bg-red-50 focus:bg-red-50"
+                        onClick={() => setOverlay("eventpro")}
+                    >
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600/10 text-red-600">
+                            <Crown className="size-4" />
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="font-bold text-sm">EventPro</span>
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Relatório Geral</span>
+                        </div>
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
-            <CreateEventModal open={showCreateModal} onOpenChange={setShowCreateModal} />
         </div>
     )
 }
+
+import { Calendar } from "lucide-react"

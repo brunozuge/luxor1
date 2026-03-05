@@ -13,13 +13,16 @@ import { PortariaModule } from "@/components/modules/portaria"
 import { BarModule } from "@/components/modules/bar"
 import { CamaroteModule } from "@/components/modules/camarote"
 import { ColaboradoresModule } from "@/components/modules/colaboradores"
+import { ListaModule } from "@/components/modules/lista"
 import { Login } from "@/components/login"
 import { Loader2 } from "lucide-react"
 import { EventSwitcher } from "@/components/event-switcher"
+import { FullScreenOverlays } from "@/components/full-screen-overlays"
 
 const sectionTitles: Record<string, string> = {
   dashboard: "Dashboard",
   pessoas: "Pessoas",
+  lista: "Lista",
   ingressos: "Ingressos",
   portaria: "Portaria",
   bar: "Bar",
@@ -35,6 +38,7 @@ function DataFetcher({ activeSection }: { activeSection: string }) {
     const sectionModules: Record<string, any[]> = {
       dashboard: ["pessoas", "tickets", "products", "barSales", "colaboradores", "camaroteTables"],
       pessoas: ["pessoas"],
+      lista: ["listas"],
       ingressos: ["ingressos", "pessoas", "colaboradores"],
       portaria: ["ingressos", "pessoas"],
       bar: ["barSales", "products", "colaboradores"],
@@ -84,12 +88,14 @@ function AppContent() {
           <div className="flex-1 p-4 md:p-6">
             {activeSection === "dashboard" && <DashboardModule />}
             {activeSection === "pessoas" && <PessoasModule />}
+            {activeSection === "lista" && <ListaModule />}
             {activeSection === "ingressos" && <IngressosModule />}
             {activeSection === "portaria" && <PortariaModule />}
             {activeSection === "bar" && <BarModule />}
             {activeSection === "camarote" && <CamaroteModule />}
             {activeSection === "colaboradores" && <ColaboradoresModule />}
           </div>
+          <FullScreenOverlays />
         </SidebarInset>
       </SidebarProvider>
     </EventDataProvider>
