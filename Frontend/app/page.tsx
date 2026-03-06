@@ -21,6 +21,8 @@ import { FullScreenOverlays } from "@/components/full-screen-overlays"
 
 const sectionTitles: Record<string, string> = {
   dashboard: "Dashboard",
+  festas: "Minhas Festas",
+  eventpro: "Relatório Geral",
   pessoas: "Pessoas",
   lista: "Lista",
   ingressos: "Ingressos",
@@ -56,8 +58,44 @@ function DataFetcher({ activeSection }: { activeSection: string }) {
   return null
 }
 
+function InnerContent({ activeSection, setActiveSection }: { activeSection: string, setActiveSection: (s: string) => void }) {
+  const { overlay, setOverlay } = useEventData()
+
+  // Sincroniza a seção ativa se o overlay mudar por fora (ex: EventSwitcher)
+  useEffect(() => {
+    if (overlay !== "none" && overlay !== activeSection) {
+      setActiveSection(overlay)
+    }
+  }, [overlay, activeSection])
+
+  return (
+    <SidebarProvider>
+      <DataFetcher activeSection={activeSection} />
+      <AppSidebar activeSection={activeSection} onNavigate={setActiveSection} />
+      <SidebarInset>
+        <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b border-border bg-background/80 px-4 backdrop-blur-sm">
+          <SidebarTrigger />
+          <Separator orientation="vertical" className="h-6" />
+          <h2 className="text-sm font-semibold ml-auto">{sectionTitles[activeSection]}</h2>
+        </header>
+        <div className="flex-1 p-4 md:p-6 pb-20 md:pb-6">
+          {(activeSection === "festas" || activeSection === "eventpro") && <FullScreenOverlays onNavigate={setActiveSection} />}
+          {activeSection === "dashboard" && <DashboardModule />}
+          {activeSection === "pessoas" && <PessoasModule />}
+          {activeSection === "lista" && <ListaModule />}
+          {activeSection === "ingressos" && <IngressosModule />}
+          {activeSection === "portaria" && <PortariaModule />}
+          {activeSection === "bar" && <BarModule />}
+          {activeSection === "camarote" && <CamaroteModule />}
+          {activeSection === "colaboradores" && <ColaboradoresModule />}
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
+  )
+}
+
 function AppContent() {
-  const [activeSection, setActiveSection] = useState("dashboard")
+  const [activeSection, setActiveSection] = useState("eventpro")
   const { isAuthenticated, loading } = useAuth()
 
   if (loading) {
@@ -74,30 +112,7 @@ function AppContent() {
 
   return (
     <EventDataProvider>
-      <DataFetcher activeSection={activeSection} />
-      <SidebarProvider>
-        <AppSidebar activeSection={activeSection} onNavigate={setActiveSection} />
-        <SidebarInset>
-          <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b border-border bg-background/80 px-4 backdrop-blur-sm">
-            <SidebarTrigger />
-            <Separator orientation="vertical" className="h-6" />
-            <EventSwitcher />
-            <Separator orientation="vertical" className="h-6 ml-auto md:hidden" />
-            <h2 className="text-sm font-semibold ml-auto hidden md:block">{sectionTitles[activeSection]}</h2>
-          </header>
-          <div className="flex-1 p-4 md:p-6">
-            {activeSection === "dashboard" && <DashboardModule />}
-            {activeSection === "pessoas" && <PessoasModule />}
-            {activeSection === "lista" && <ListaModule />}
-            {activeSection === "ingressos" && <IngressosModule />}
-            {activeSection === "portaria" && <PortariaModule />}
-            {activeSection === "bar" && <BarModule />}
-            {activeSection === "camarote" && <CamaroteModule />}
-            {activeSection === "colaboradores" && <ColaboradoresModule />}
-          </div>
-          <FullScreenOverlays />
-        </SidebarInset>
-      </SidebarProvider>
+      <InnerContent activeSection={activeSection} setActiveSection={setActiveSection} />
     </EventDataProvider>
   )
 }

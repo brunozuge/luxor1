@@ -182,6 +182,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
 
   // Use a ref to always have access to current data without stale closures
   const dataRef = useRef(data)
+  const globalStatsCacheRef = useRef<Map<string, any>>(new Map())
   useEffect(() => {
     dataRef.current = data
   }, [data])
@@ -233,7 +234,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const [overlay, setOverlay] = useState<"none" | "festas" | "eventpro">("none")
+  const [overlay, setOverlay] = useState<"none" | "festas" | "eventpro">("eventpro")
 
   useEffect(() => {
     setMounted(true)
@@ -276,7 +277,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           cor_primaria: e.cor_primaria,
           cor_secundaria: e.cor_secundaria,
           logo: e.logo,
-          stats: statsMap.get(String(e.id)) || null
+          stats: e.stats || statsMap.get(String(e.id)) || globalStatsCacheRef.current.get(String(e.id)) || null
         }))
 
         return { ...prev, eventos: mapped }
@@ -302,7 +303,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   const fetchGlobalSummary = useCallback(async () => {
     const currentToken = tokenRef.current
     const now = Date.now()
-    if (!currentToken || isGlobalLoadingRef.current || (now - lastGlobalFetchRef.current < 5000)) return
+    if (!currentToken || isGlobalLoadingRef.current) return
 
     isGlobalLoadingRef.current = true
     setIsGlobalLoading(true)
@@ -316,21 +317,23 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       })
       if (!res.ok) throw new Error("Erro ao carregar resumo global")
       const summary = await res.json()
+      console.log("Global Summary Data received:", summary)
       lastGlobalFetchRef.current = Date.now()
 
       setData(prev => {
-        // Create a map of the new data for efficient merging
         const summaryMap = new Map()
         summary.forEach((e: any) => {
-          summaryMap.set(String(e.id), {
-            faturamento_total: Number(e.stats?.faturamento_total || 0),
-            faturamento_ingressos: Number(e.stats?.faturamento_ingressos || 0),
-            faturamento_bar: Number(e.stats?.faturamento_bar || 0),
-            colaboradores_count: Number(e.stats?.colaboradores_count || 0),
-            ingressos_count: Number(e.stats?.ingressos_count || 0),
-            mesas_count: Number(e.stats?.mesas_count || 0),
-            garrafas_count: Number(e.stats?.garrafas_count || 0),
-          })
+          const stats = {
+            faturamento_total: Number(e.stats?.faturamento_total ?? e.faturamento_total ?? 0),
+            faturamento_ingressos: Number(e.stats?.faturamento_ingressos ?? e.faturamento_ingressos ?? 0),
+            faturamento_bar: Number(e.stats?.faturamento_bar ?? e.faturamento_bar ?? 0),
+            colaboradores_count: Number(e.stats?.colaboradores_count ?? e.colaboradores_count ?? 0),
+            ingressos_count: Number(e.stats?.ingressos_count ?? e.ingressos_count ?? 0),
+            mesas_count: Number(e.stats?.mesas_count ?? e.mesas_count ?? 0),
+            garrafas_count: Number(e.stats?.garrafas_count ?? e.garrafas_count ?? 0),
+          }
+          summaryMap.set(String(e.id), stats)
+          globalStatsCacheRef.current.set(String(e.id), stats)
         })
 
         const merged = prev.eventos.map(ev => {
@@ -338,6 +341,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           return stats ? { ...ev, stats } : ev
         })
 
+        console.log(`Merged stats for ${merged.filter(e => e.stats).length} out of ${merged.length} events`)
         return { ...prev, eventos: merged }
       })
     } catch (err) {
@@ -474,10 +478,17 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
 
 
   useEffect(() => {
-    if (overlay !== "none" && isAuthenticated) {
-      fetchGlobalSummary()
+    if (isAuthenticated) {
+      refreshEventos()
     }
-  }, [overlay, isAuthenticated, fetchGlobalSummary])
+  }, [isAuthenticated, refreshEventos])
+
+  useEffect(() => {
+    if (overlay !== "none" && isAuthenticated) {
+      refreshEventos() // Refresh the list (which now includes basic stats)
+      fetchGlobalSummary() // Then fetch more detailed stats
+    }
+  }, [overlay, isAuthenticated, refreshEventos, fetchGlobalSummary])
 
 
   const addEvento = useCallback(async (e: Omit<Evento, "id">) => {

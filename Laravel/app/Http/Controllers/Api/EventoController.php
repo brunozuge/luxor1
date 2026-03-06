@@ -12,23 +12,30 @@ class EventoController extends Controller
      */
     public function index()
     {
-        $eventos = auth()->user()->eventos()->get(['id', 'nome', 'cor_primaria', 'cor_secundaria', 'logo']);
-        return response()->json($eventos);
-    }
-
-    public function summary()
-    {
         $eventos = auth()->user()->eventos()
             ->withCount([
-                'ingressos as ingressos_count',
-                'colaboradores as colaboradores_count',
-                'mesasCamarote as mesas_count'
+                'ingressos as ingressos_count' => function ($query) {
+                    $query->withoutGlobalScope('evento');
+                },
+                'colaboradores as colaboradores_count' => function ($query) {
+                    $query->withoutGlobalScope('evento');
+                },
+                'mesasCamarote as mesas_count' => function ($query) {
+                    $query->withoutGlobalScope('evento');
+                }
             ])
-            ->withSum('ingressos as faturamento_ingressos', 'valor_pago')
-            ->withSum('vendasBar as faturamento_bar', 'valor_total')
+            ->withSum(['ingressos as faturamento_ingressos' => function ($query) {
+                $query->withoutGlobalScope('evento');
+            }], 'valor_pago')
+            ->withSum(['vendasBar as faturamento_bar' => function ($query) {
+                $query->withoutGlobalScope('evento');
+            }], 'valor_total')
             ->get();
 
         $mapped = $eventos->map(function ($evento) {
+            $faturamento_ingressos = (float)$evento->faturamento_ingressos;
+            $faturamento_bar = (float)$evento->faturamento_bar;
+
             return [
                 'id' => $evento->id,
                 'nome' => $evento->nome,
@@ -36,13 +43,65 @@ class EventoController extends Controller
                 'cor_secundaria' => $evento->cor_secundaria,
                 'logo' => $evento->logo,
                 'stats' => [
-                    'faturamento_total' => (float)$evento->faturamento_ingressos + (float)$evento->faturamento_bar,
-                    'faturamento_ingressos' => (float)$evento->faturamento_ingressos,
-                    'faturamento_bar' => (float)$evento->faturamento_bar,
+                    'faturamento_total' => $faturamento_ingressos + $faturamento_bar,
+                    'faturamento_ingressos' => $faturamento_ingressos,
+                    'faturamento_bar' => $faturamento_bar,
                     'colaboradores_count' => (int)$evento->colaboradores_count,
                     'ingressos_count' => (int)$evento->ingressos_count,
                     'mesas_count' => (int)$evento->mesas_count,
-                    'garrafas_count' => $this->countGarrafas($evento),
+                    'garrafas_count' => 0, // Simplified for index to stay fast
+                ]
+            ];
+        });
+
+        return response()->json($mapped);
+    }
+
+    public function summary()
+    {
+        $eventos = auth()->user()->eventos()
+            ->withCount([
+                'ingressos as ingressos_count' => function ($query) {
+                    $query->withoutGlobalScope('evento');
+                },
+                'colaboradores as colaboradores_count' => function ($query) {
+                    $query->withoutGlobalScope('evento');
+                },
+                'mesasCamarote as mesas_count' => function ($query) {
+                    $query->withoutGlobalScope('evento');
+                }
+            ])
+            ->withSum(['ingressos as faturamento_ingressos' => function ($query) {
+                $query->withoutGlobalScope('evento');
+            }], 'valor_pago')
+            ->withSum(['vendasBar as faturamento_bar' => function ($query) {
+                $query->withoutGlobalScope('evento');
+            }], 'valor_total')
+            ->with(['mesasCamarote' => function ($query) {
+                $query->withoutGlobalScope('evento');
+            }])
+            ->get();
+
+        $mapped = $eventos->map(function ($evento) {
+            $faturamento_ingressos = (float)$evento->faturamento_ingressos;
+            $faturamento_bar = (float)$evento->faturamento_bar;
+
+            return [
+                'id' => $evento->id,
+                'nome' => $evento->nome,
+                'cor_primaria' => $evento->cor_primaria,
+                'cor_secundaria' => $evento->cor_secundaria,
+                'logo' => $evento->logo,
+                'stats' => [
+                    'faturamento_total' => $faturamento_ingressos + $faturamento_bar,
+                    'faturamento_ingressos' => $faturamento_ingressos,
+                    'faturamento_bar' => $faturamento_bar,
+                    'colaboradores_count' => (int)$evento->colaboradores_count,
+                    'ingressos_count' => (int)$evento->ingressos_count,
+                    'mesas_count' => (int)$evento->mesas_count,
+                    'garrafas_count' => $evento->mesasCamarote->reduce(function ($carry, $mesa) {
+                        return $carry + (is_array($mesa->garrafas) ? count($mesa->garrafas) : 0);
+                    }, 0),
                 ]
             ];
         });
@@ -112,9 +171,9 @@ class EventoController extends Controller
             'cor_secundaria' => $evento->cor_secundaria,
             'logo' => $evento->logo,
             'stats' => [
-                'faturamento_total' => $faturamento_ingressos + $faturamento_bar,
-                'faturamento_ingressos' => $faturamento_ingressos,
-                'faturamento_bar' => $faturamento_bar,
+                'faturamento_total' => (float)$faturamento_ingressos + (float)$faturamento_bar,
+                'faturamento_ingressos' => (float)$faturamento_ingressos,
+                'faturamento_bar' => (float)$faturamento_bar,
                 'colaboradores_count' => (int)$evento->colaboradores_count,
                 'ingressos_count' => (int)$evento->ingressos_count,
                 'mesas_count' => (int)$evento->mesas_count,

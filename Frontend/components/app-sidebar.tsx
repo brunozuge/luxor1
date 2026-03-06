@@ -14,6 +14,7 @@ import {
   Plus,
   Calendar,
   ListTodo,
+  LayoutGrid,
 } from "lucide-react"
 import {
   Sidebar,
@@ -44,6 +45,8 @@ import {
 
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
+  { title: "Minhas Festas", icon: Calendar, id: "festas" },
+  { title: "Relatório Geral", icon: LayoutGrid, id: "eventpro" },
   { title: "Pessoas", icon: Users, id: "pessoas" },
   { title: "Lista", icon: ListTodo, id: "lista" },
   { title: "Ingressos", icon: Ticket, id: "ingressos" },
@@ -66,6 +69,11 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
 
   const handleNavigate = (id: string) => {
+    if (id === "festas" || id === "eventpro") {
+      setOverlay(id as any)
+    } else {
+      setOverlay("none")
+    }
     onNavigate(id)
     setOpenMobile(false)
   }
@@ -134,7 +142,7 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
             <DropdownMenuItem
               className="flex items-center gap-3 p-3 cursor-pointer rounded-lg hover:bg-red-50 focus:bg-red-50"
               onClick={() => {
-                setOverlay("festas")
+                handleNavigate("festas")
               }}
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600/10 text-red-600">
@@ -149,7 +157,7 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
             <DropdownMenuItem
               className="flex items-center gap-3 p-3 cursor-pointer rounded-lg hover:bg-red-50 focus:bg-red-50"
               onClick={() => {
-                setOverlay("eventpro")
+                handleNavigate("eventpro")
               }}
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600/10 text-red-600">

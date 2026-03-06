@@ -4,6 +4,7 @@ import React, { useState } from "react"
 import { useEventData, Evento } from "@/lib/event-data"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
     X,
     ChevronRight,
@@ -32,16 +33,16 @@ const EventCard = React.memo(({
 }: {
     evento: any,
     isExpanded: boolean,
-    onExpand: () => void,
-    onEdit: (e: React.MouseEvent) => void,
-    onDelete: (e: React.MouseEvent) => void,
-    onEnter: (e: React.MouseEvent) => void
+    onExpand: (id: string) => void,
+    onEdit: (evento: any, e: React.MouseEvent) => void,
+    onDelete: (id: string, e: React.MouseEvent) => void,
+    onEnter: (id: string, e: React.MouseEvent) => void
 }) => {
     return (
         <Card
             className={`cursor-pointer transition-all hover:shadow-lg relative overflow-hidden group`}
             style={{ border: `2px solid ${evento.cor_primaria}` }}
-            onClick={onExpand}
+            onClick={() => onExpand(evento.id)}
         >
             <CardContent className="p-0">
                 <div className="p-4 sm:p-6 flex items-center justify-between">
@@ -54,7 +55,7 @@ const EventCard = React.memo(({
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-primary"
-                            onClick={onEdit}
+                            onClick={(e) => onEdit(evento, e)}
                         >
                             <Pencil className="h-4 w-4" />
                         </Button>
@@ -62,7 +63,7 @@ const EventCard = React.memo(({
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={onDelete}
+                            onClick={(e) => onDelete(evento.id, e)}
                         >
                             <Trash2 className="h-4 w-4" />
                         </Button>
@@ -140,7 +141,7 @@ const EventCard = React.memo(({
 
                         <Button
                             className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white"
-                            onClick={onEnter}
+                            onClick={(e) => onEnter(evento.id, e)}
                         >
                             Entrar no Painel
                         </Button>
@@ -151,11 +152,32 @@ const EventCard = React.memo(({
     )
 })
 
-export function FullScreenOverlays() {
+export function FullScreenOverlays({ onNavigate }: { onNavigate?: (section: string) => void }) {
     const { overlay, setOverlay, eventos, setSelectedEventId, removeEvento, isGlobalLoading } = useEventData()
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null)
     const [eventToEdit, setEventToEdit] = useState<Evento | null>(null)
     const [eventToDelete, setEventToDelete] = useState<string | null>(null)
+
+    const handleExpand = React.useCallback((id: string) => {
+        setExpandedEventId(prev => prev === id ? null : id)
+    }, [])
+
+    const handleEdit = React.useCallback((evento: any, e: React.MouseEvent) => {
+        e.stopPropagation()
+        setEventToEdit(evento)
+    }, [])
+
+    const handleDelete = React.useCallback((id: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        setEventToDelete(id)
+    }, [])
+
+    const handleEnter = React.useCallback((id: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        setSelectedEventId(id)
+        setOverlay("none")
+        if (onNavigate) onNavigate("dashboard")
+    }, [setSelectedEventId, setOverlay, onNavigate])
 
     const globalStats = React.useMemo(() => {
         const totalRevenue = eventos.reduce((sum, e) => sum + (e.stats?.faturamento_total || 0), 0)
@@ -180,8 +202,8 @@ export function FullScreenOverlays() {
     const { totalRevenue, totalColabs, totalTickets, totalTables, totalBottles, chartData, maxChartValue } = globalStats
 
     return (
-        <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-in fade-in zoom-in-95 duration-200">
-            <div className="h-16 border-b border-border flex items-center justify-between px-6 bg-card shrink-0">
+        <div className="flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="mb-6 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <h2 className="text-xl font-bold">
                         {overlay === "festas" ? "Minhas Festas" : "EventPro Geral"}
@@ -203,14 +225,17 @@ export function FullScreenOverlays() {
                             Atualizando dados globais...
                         </div>
                     )}
-                    <Button variant="ghost" size="icon" onClick={() => setOverlay("none")}>
-                        <X className="h-6 w-6" />
-                    </Button>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-secondary/5">
-                {overlay === "festas" ? (
+            <div className="flex-1 overflow-y-auto">
+                {isGlobalLoading && eventos.length === 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-7xl mx-auto">
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                            <Card key={i} className="h-48 animate-pulse bg-secondary/10" />
+                        ))}
+                    </div>
+                ) : overlay === "festas" ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-7xl mx-auto">
                         {eventos.map((evento) => (
                             <div
@@ -220,23 +245,44 @@ export function FullScreenOverlays() {
                                 <EventCard
                                     evento={evento}
                                     isExpanded={expandedEventId === evento.id}
-                                    onExpand={() => setExpandedEventId(expandedEventId === evento.id ? null : evento.id)}
-                                    onEdit={(e) => {
-                                        e.stopPropagation()
-                                        setEventToEdit(evento)
-                                    }}
-                                    onDelete={(e) => {
-                                        e.stopPropagation()
-                                        setEventToDelete(evento.id)
-                                    }}
-                                    onEnter={(e) => {
-                                        e.stopPropagation()
-                                        setSelectedEventId(evento.id)
-                                        setOverlay("none")
-                                    }}
+                                    onExpand={handleExpand}
+                                    onEdit={handleEdit}
+                                    onDelete={handleDelete}
+                                    onEnter={handleEnter}
                                 />
                             </div>
                         ))}
+                    </div>
+                ) : (isGlobalLoading && totalRevenue === 0) ? (
+                    <div className="max-w-7xl mx-auto space-y-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                            {[1, 2, 3, 4].map((i) => (
+                                <Card key={i} className="animate-pulse">
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <Skeleton className="h-4 w-24" />
+                                        <Skeleton className="h-4 w-4 rounded-full" />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <Skeleton className="h-8 w-32 mb-2" />
+                                        <Skeleton className="h-3 w-20" />
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                        <Card className="p-6 sm:p-8">
+                            <Skeleton className="h-6 w-48 mb-6" />
+                            <div className="space-y-4">
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} className="space-y-2">
+                                        <div className="flex justify-between">
+                                            <Skeleton className="h-4 w-32" />
+                                            <Skeleton className="h-4 w-12" />
+                                        </div>
+                                        <Skeleton className="h-3 w-full rounded-full" />
+                                    </div>
+                                ))}
+                            </div>
+                        </Card>
                     </div>
                 ) : (
                     <div className="max-w-7xl mx-auto space-y-8">
