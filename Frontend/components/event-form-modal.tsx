@@ -6,6 +6,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -73,6 +74,9 @@ export function EventFormModal({ open, onOpenChange, initialData }: EventFormMod
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
                         <DialogTitle>{isEdit ? "Editar Evento" : "Criar Novo Evento"}</DialogTitle>
+                        <DialogDescription>
+                            {isEdit ? "Atualize as informações principais da sua festa." : "Preencha o nome e escolha a cor de destaque para o seu evento."}
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">

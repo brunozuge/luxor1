@@ -22,7 +22,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Trash2, Users, Search, X, Pencil, FileText } from "lucide-react"
+import { Plus, Trash2, ListTodo, Search, X, Pencil, FileText } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 
 export function ListaModule() {
@@ -87,7 +87,7 @@ export function ListaModule() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground">Total de Listas</CardTitle>
-                        <FileText className="h-4 w-4 text-primary" />
+                        <ListTodo className="h-4 w-4 text-primary" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{listas.length}</div>

@@ -22,6 +22,135 @@ import {
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { EventFormModal } from "@/components/event-form-modal"
 
+const EventCard = React.memo(({
+    evento,
+    isExpanded,
+    onExpand,
+    onEdit,
+    onDelete,
+    onEnter
+}: {
+    evento: any,
+    isExpanded: boolean,
+    onExpand: () => void,
+    onEdit: (e: React.MouseEvent) => void,
+    onDelete: (e: React.MouseEvent) => void,
+    onEnter: (e: React.MouseEvent) => void
+}) => {
+    return (
+        <Card
+            className={`cursor-pointer transition-all hover:shadow-lg relative overflow-hidden group`}
+            style={{ border: `2px solid ${evento.cor_primaria}` }}
+            onClick={onExpand}
+        >
+            <CardContent className="p-0">
+                <div className="p-4 sm:p-6 flex items-center justify-between">
+                    <div className="flex flex-col gap-1 min-w-0">
+                        <h3 className="text-lg font-bold truncate pr-2">{evento.nome}</h3>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider">ID: {evento.id}</p>
+                    </div>
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={onEdit}
+                        >
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={onDelete}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                        {isExpanded ? <ChevronDown className="h-5 w-5 opacity-50 ml-1 sm:ml-2" /> : <ChevronRight className="h-5 w-5 opacity-50 ml-1 sm:ml-2" />}
+                    </div>
+                </div>
+
+                {isExpanded && (
+                    <div className="px-4 pb-4 sm:px-6 sm:pb-6 pt-2 border-t border-border animate-in slide-in-from-top-2 duration-300">
+                        <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                            <div className="p-2 sm:p-3 rounded-lg bg-secondary/20 border border-border">
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 flex items-center gap-1 uppercase font-bold tracking-tighter">
+                                    <DollarSign className="h-3 w-3" /> Total
+                                </p>
+                                <p className="text-sm sm:text-lg font-bold">R$ {evento.stats?.faturamento_total?.toLocaleString() || "0"}</p>
+                            </div>
+                            <div className="p-2 sm:p-3 rounded-lg bg-secondary/20 border border-border">
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 flex items-center gap-1 uppercase font-bold tracking-tighter">
+                                    <Users className="h-3 w-3" /> Equipe
+                                </p>
+                                <p className="text-sm sm:text-lg font-bold">{evento.stats?.colaboradores_count || "0"}</p>
+                            </div>
+                            <div className="p-2 sm:p-3 rounded-lg bg-secondary/20 border border-border">
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 flex items-center gap-1 uppercase font-bold tracking-tighter">
+                                    <Ticket className="h-3 w-3" /> Ingressos
+                                </p>
+                                <p className="text-[10px] sm:text-xs font-medium text-muted-foreground">{evento.stats?.ingressos_count || 0} vendidos</p>
+                                <p className="text-sm sm:text-base font-bold">R$ {evento.stats?.faturamento_ingressos?.toLocaleString() || "0"}</p>
+                            </div>
+                            <div className="p-2 sm:p-3 rounded-lg bg-secondary/20 border border-border">
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 flex items-center gap-1 uppercase font-bold tracking-tighter">
+                                    <Wine className="h-3 w-3" /> Bar
+                                </p>
+                                <p className="text-sm sm:text-base font-bold mt-4 sm:mt-5">R$ {evento.stats?.faturamento_bar?.toLocaleString() || "0"}</p>
+                            </div>
+                            <div className="p-2 sm:p-3 rounded-lg bg-secondary/20 border border-border col-span-2">
+                                <div className="flex justify-between items-center mb-1">
+                                    <p className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 uppercase font-bold tracking-tighter">
+                                        <Wine className="h-3 w-3 text-red-500" /> Resumo VIP / Camarote
+                                    </p>
+                                </div>
+                                <div className="flex gap-4">
+                                    <div>
+                                        <p className="text-[10px] text-muted-foreground">Mesas</p>
+                                        <p className="text-sm font-bold">{evento.stats?.mesas_count || 0}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-muted-foreground">Garrafas</p>
+                                        <p className="text-sm font-bold">{evento.stats?.garrafas_count || 0}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 space-y-2">
+                            <div className="flex justify-between text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                                <span>Ingressos</span>
+                                <span>Bar</span>
+                            </div>
+                            <div className="h-2 w-full bg-secondary/30 rounded-full overflow-hidden flex">
+                                <div
+                                    className="h-full bg-red-600"
+                                    style={{ width: `${evento.stats?.faturamento_total ? (evento.stats.faturamento_ingressos / evento.stats.faturamento_total) * 100 : 50}%` }}
+                                />
+                                <div
+                                    className="h-full bg-red-400"
+                                    style={{ width: `${evento.stats?.faturamento_total ? (evento.stats.faturamento_bar / evento.stats.faturamento_total) * 100 : 50}%` }}
+                                />
+                            </div>
+                            <div className="flex justify-between text-[10px] text-muted-foreground">
+                                <span>{Math.round(evento.stats?.faturamento_total ? (evento.stats.faturamento_ingressos / evento.stats.faturamento_total) * 100 : 0)}%</span>
+                                <span>{Math.round(evento.stats?.faturamento_total ? (evento.stats.faturamento_bar / evento.stats.faturamento_total) * 100 : 0)}%</span>
+                            </div>
+                        </div>
+
+                        <Button
+                            className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white"
+                            onClick={onEnter}
+                        >
+                            Entrar no Painel
+                        </Button>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    )
+})
+
 export function FullScreenOverlays() {
     const { overlay, setOverlay, eventos, setSelectedEventId, removeEvento, isGlobalLoading } = useEventData()
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null)
@@ -88,128 +217,24 @@ export function FullScreenOverlays() {
                                 key={evento.id}
                                 className="flex flex-col gap-2"
                             >
-                                <Card
-                                    className={`cursor-pointer transition-all hover:shadow-lg relative overflow-hidden group`}
-                                    style={{ border: `2px solid ${evento.cor_primaria}` }}
-                                    onClick={() => setExpandedEventId(expandedEventId === evento.id ? null : evento.id)}
-                                >
-                                    <CardContent className="p-0">
-                                        <div className="p-4 sm:p-6 flex items-center justify-between">
-                                            <div className="flex flex-col gap-1 min-w-0">
-                                                <h3 className="text-lg font-bold truncate pr-2">{evento.nome}</h3>
-                                                <p className="text-xs text-muted-foreground uppercase tracking-wider">ID: {evento.id}</p>
-                                            </div>
-                                            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setEventToEdit(evento)
-                                                    }}
-                                                >
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setEventToDelete(evento.id)
-                                                    }}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                                {expandedEventId === evento.id ? <ChevronDown className="h-5 w-5 opacity-50 ml-1 sm:ml-2" /> : <ChevronRight className="h-5 w-5 opacity-50 ml-1 sm:ml-2" />}
-                                            </div>
-                                        </div>
-
-                                        {expandedEventId === evento.id && (
-                                            <div className="px-4 pb-4 sm:px-6 sm:pb-6 pt-2 border-t border-border animate-in slide-in-from-top-2 duration-300">
-                                                <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                                                    <div className="p-2 sm:p-3 rounded-lg bg-secondary/20 border border-border">
-                                                        <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 flex items-center gap-1 uppercase font-bold tracking-tighter">
-                                                            <DollarSign className="h-3 w-3" /> Total
-                                                        </p>
-                                                        <p className="text-sm sm:text-lg font-bold">R$ {evento.stats?.faturamento_total?.toLocaleString() || "0"}</p>
-                                                    </div>
-                                                    <div className="p-2 sm:p-3 rounded-lg bg-secondary/20 border border-border">
-                                                        <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 flex items-center gap-1 uppercase font-bold tracking-tighter">
-                                                            <Users className="h-3 w-3" /> Equipe
-                                                        </p>
-                                                        <p className="text-sm sm:text-lg font-bold">{evento.stats?.colaboradores_count || "0"}</p>
-                                                    </div>
-                                                    <div className="p-2 sm:p-3 rounded-lg bg-secondary/20 border border-border">
-                                                        <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 flex items-center gap-1 uppercase font-bold tracking-tighter">
-                                                            <Ticket className="h-3 w-3" /> Ingressos
-                                                        </p>
-                                                        <p className="text-[10px] sm:text-xs font-medium text-muted-foreground">{evento.stats?.ingressos_count || 0} vendidos</p>
-                                                        <p className="text-sm sm:text-base font-bold">R$ {evento.stats?.faturamento_ingressos?.toLocaleString() || "0"}</p>
-                                                    </div>
-                                                    <div className="p-2 sm:p-3 rounded-lg bg-secondary/20 border border-border">
-                                                        <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 flex items-center gap-1 uppercase font-bold tracking-tighter">
-                                                            <Wine className="h-3 w-3" /> Bar
-                                                        </p>
-                                                        <p className="text-sm sm:text-base font-bold mt-4 sm:mt-5">R$ {evento.stats?.faturamento_bar?.toLocaleString() || "0"}</p>
-                                                    </div>
-
-                                                    {/* Novas Stats VIP */}
-                                                    <div className="p-2 sm:p-3 rounded-lg bg-secondary/20 border border-border col-span-2">
-                                                        <div className="flex justify-between items-center mb-1">
-                                                            <p className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 uppercase font-bold tracking-tighter">
-                                                                <Wine className="h-3 w-3 text-red-500" /> Resumo VIP / Camarote
-                                                            </p>
-                                                        </div>
-                                                        <div className="flex gap-4">
-                                                            <div>
-                                                                <p className="text-[10px] text-muted-foreground">Mesas</p>
-                                                                <p className="text-sm font-bold">{evento.stats?.mesas_count || 0}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-[10px] text-muted-foreground">Garrafas</p>
-                                                                <p className="text-sm font-bold">{evento.stats?.garrafas_count || 0}</p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="mt-4 space-y-2">
-                                                    <div className="flex justify-between text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-                                                        <span>Ingressos</span>
-                                                        <span>Bar</span>
-                                                    </div>
-                                                    <div className="h-2 w-full bg-secondary/30 rounded-full overflow-hidden flex">
-                                                        <div
-                                                            className="h-full bg-red-600"
-                                                            style={{ width: `${evento.stats?.faturamento_total ? (evento.stats.faturamento_ingressos / evento.stats.faturamento_total) * 100 : 50}%` }}
-                                                        />
-                                                        <div
-                                                            className="h-full bg-red-400"
-                                                            style={{ width: `${evento.stats?.faturamento_total ? (evento.stats.faturamento_bar / evento.stats.faturamento_total) * 100 : 50}%` }}
-                                                        />
-                                                    </div>
-                                                    <div className="flex justify-between text-[10px] text-muted-foreground">
-                                                        <span>{Math.round(evento.stats?.faturamento_total ? (evento.stats.faturamento_ingressos / evento.stats.faturamento_total) * 100 : 0)}%</span>
-                                                        <span>{Math.round(evento.stats?.faturamento_total ? (evento.stats.faturamento_bar / evento.stats.faturamento_total) * 100 : 0)}%</span>
-                                                    </div>
-                                                </div>
-
-                                                <Button
-                                                    className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setSelectedEventId(evento.id)
-                                                        setOverlay("none")
-                                                    }}
-                                                >
-                                                    Entrar no Painel
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
+                                <EventCard
+                                    evento={evento}
+                                    isExpanded={expandedEventId === evento.id}
+                                    onExpand={() => setExpandedEventId(expandedEventId === evento.id ? null : evento.id)}
+                                    onEdit={(e) => {
+                                        e.stopPropagation()
+                                        setEventToEdit(evento)
+                                    }}
+                                    onDelete={(e) => {
+                                        e.stopPropagation()
+                                        setEventToDelete(evento.id)
+                                    }}
+                                    onEnter={(e) => {
+                                        e.stopPropagation()
+                                        setSelectedEventId(evento.id)
+                                        setOverlay("none")
+                                    }}
+                                />
                             </div>
                         ))}
                     </div>

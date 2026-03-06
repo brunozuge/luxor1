@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Plus,
   Calendar,
+  ListTodo,
 } from "lucide-react"
 import {
   Sidebar,
@@ -44,7 +45,7 @@ import {
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
   { title: "Pessoas", icon: Users, id: "pessoas" },
-  { title: "Lista", icon: Users, id: "lista" },
+  { title: "Lista", icon: ListTodo, id: "lista" },
   { title: "Ingressos", icon: Ticket, id: "ingressos" },
   { title: "Portaria", icon: DoorOpen, id: "portaria" },
   { title: "Bar", icon: Wine, id: "bar" },

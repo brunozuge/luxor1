@@ -248,6 +248,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   const refreshEventos = useCallback(async () => {
     const currentToken = tokenRef.current
     if (!currentToken) return
+
     // Only set loading if it's the very first load of the list
     const isFirstListLoad = dataRef.current.eventos.length === 0
     if (isFirstListLoad) setLoading(true)
@@ -261,16 +262,25 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       })
       if (!res.ok) throw new Error("Erro ao carregar eventos")
       const eventos = await res.json()
-      const mapped = eventos.map((e: any) => ({
-        id: String(e.id),
-        nome: e.nome,
-        cor_primaria: e.cor_primaria,
-        cor_secundaria: e.cor_secundaria,
-        logo: e.logo,
-        // Lightweight list doesn't have stats yet, preserve if they exist
-        stats: dataRef.current.eventos.find(ex => String(ex.id) === String(e.id))?.stats
-      }))
-      setData(prev => ({ ...prev, eventos: mapped }))
+
+      setData(prev => {
+        // Create a map of existing stats to preserve them
+        const statsMap = new Map()
+        prev.eventos.forEach(ev => {
+          if (ev.stats) statsMap.set(String(ev.id), ev.stats)
+        })
+
+        const mapped = eventos.map((e: any) => ({
+          id: String(e.id),
+          nome: e.nome,
+          cor_primaria: e.cor_primaria,
+          cor_secundaria: e.cor_secundaria,
+          logo: e.logo,
+          stats: statsMap.get(String(e.id)) || null
+        }))
+
+        return { ...prev, eventos: mapped }
+      })
 
       if (eventos.length > 0) {
         const currentId = selectedEventIdRef.current
@@ -286,9 +296,15 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [setSelectedEventId])
 
+  const isGlobalLoadingRef = useRef(false)
+  const lastGlobalFetchRef = useRef(0)
+
   const fetchGlobalSummary = useCallback(async () => {
     const currentToken = tokenRef.current
-    if (!currentToken) return
+    const now = Date.now()
+    if (!currentToken || isGlobalLoadingRef.current || (now - lastGlobalFetchRef.current < 5000)) return
+
+    isGlobalLoadingRef.current = true
     setIsGlobalLoading(true)
 
     try {
@@ -300,27 +316,35 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       })
       if (!res.ok) throw new Error("Erro ao carregar resumo global")
       const summary = await res.json()
-      const mapped = summary.map((e: any) => ({
-        id: String(e.id),
-        nome: e.nome,
-        cor_primaria: e.cor_primaria,
-        cor_secundaria: e.cor_secundaria,
-        logo: e.logo,
-        stats: {
-          faturamento_total: Number(e.stats?.faturamento_total || 0),
-          faturamento_ingressos: Number(e.stats?.faturamento_ingressos || 0),
-          faturamento_bar: Number(e.stats?.faturamento_bar || 0),
-          colaboradores_count: Number(e.stats?.colaboradores_count || 0),
-          ingressos_count: Number(e.stats?.ingressos_count || 0),
-          mesas_count: Number(e.stats?.mesas_count || 0),
-          garrafas_count: Number(e.stats?.garrafas_count || 0),
-        }
-      }))
-      setData(prev => ({ ...prev, eventos: mapped }))
+      lastGlobalFetchRef.current = Date.now()
+
+      setData(prev => {
+        // Create a map of the new data for efficient merging
+        const summaryMap = new Map()
+        summary.forEach((e: any) => {
+          summaryMap.set(String(e.id), {
+            faturamento_total: Number(e.stats?.faturamento_total || 0),
+            faturamento_ingressos: Number(e.stats?.faturamento_ingressos || 0),
+            faturamento_bar: Number(e.stats?.faturamento_bar || 0),
+            colaboradores_count: Number(e.stats?.colaboradores_count || 0),
+            ingressos_count: Number(e.stats?.ingressos_count || 0),
+            mesas_count: Number(e.stats?.mesas_count || 0),
+            garrafas_count: Number(e.stats?.garrafas_count || 0),
+          })
+        })
+
+        const merged = prev.eventos.map(ev => {
+          const stats = summaryMap.get(String(ev.id))
+          return stats ? { ...ev, stats } : ev
+        })
+
+        return { ...prev, eventos: merged }
+      })
     } catch (err) {
       console.error(err)
     } finally {
       setIsGlobalLoading(false)
+      isGlobalLoadingRef.current = false
     }
   }, [])
 
@@ -447,11 +471,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []) // No dependencies on data or selectedEventId — use refs instead
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      refreshEventos()
-    }
-  }, [isAuthenticated, refreshEventos])
+
 
   useEffect(() => {
     if (overlay !== "none" && isAuthenticated) {
@@ -552,9 +572,9 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         throw new Error((err as any).message || "Erro ao remover evento")
       }
 
-      if (String(currentSelectedId) === String(id)) {
+      if (String(selectedEventIdRef.current) === String(id)) {
         localStorage.removeItem("selected_evento_id")
-        const remaining = previousEventos.filter(x => String(x.id) !== id)
+        const remaining = dataRef.current.eventos
         if (remaining.length > 0) {
           const nextId = String(remaining[0].id)
           setSelectedEventId(nextId)
