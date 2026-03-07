@@ -72,13 +72,13 @@ function InnerContent({ activeSection, setActiveSection }: { activeSection: stri
     <SidebarProvider>
       <DataFetcher activeSection={activeSection} />
       <AppSidebar activeSection={activeSection} onNavigate={setActiveSection} />
-      <SidebarInset>
+      <SidebarInset className="min-w-0 overflow-hidden">
         <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b border-border bg-background/80 px-4 backdrop-blur-sm">
           <SidebarTrigger />
           <Separator orientation="vertical" className="h-6" />
           <h2 className="text-sm font-semibold ml-auto">{sectionTitles[activeSection]}</h2>
         </header>
-        <div className="flex-1 p-4 md:p-6 pb-20 md:pb-6">
+        <div className="flex-1 min-w-0 p-4 md:p-6 pb-20 md:pb-6 overflow-x-hidden max-w-full">
           {(activeSection === "festas" || activeSection === "eventpro") && <FullScreenOverlays onNavigate={setActiveSection} />}
           {activeSection === "dashboard" && <DashboardModule />}
           {activeSection === "pessoas" && <PessoasModule />}

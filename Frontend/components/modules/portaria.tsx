@@ -70,7 +70,7 @@ export function PortariaModule() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
+      <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-foreground">Sistema de Portaria</h1>
         <p className="text-sm text-muted-foreground">
           Controle de entrada no evento
@@ -97,69 +97,68 @@ export function PortariaModule() {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         {[1, 2, 3].map((i) => (
-          <Card key={i} className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <Card key={i} className={`bg-card border-border ${i === 3 ? "col-span-2 sm:col-span-1" : ""}`}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 px-4 pt-4">
               {isLoading && tickets.length === 0 ? (
                 <>
-                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-[60%]" />
                   <Skeleton className="h-4 w-4 rounded-full" />
                 </>
               ) : i === 1 ? (
                 <>
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Pessoas Dentro</CardTitle>
-                  <DoorOpen className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-tight">Pessoas Dentro</CardTitle>
+                  <DoorOpen className="h-4 w-4 text-primary shrink-0" />
                 </>
               ) : i === 2 ? (
                 <>
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
-                  <UserCheck className="h-4 w-4 text-warning" />
+                  <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-tight">Pendentes</CardTitle>
+                  <UserCheck className="h-4 w-4 text-warning shrink-0" />
                 </>
               ) : (
                 <>
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Ultima Entrada</CardTitle>
-                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-tight">Ultima Entrada</CardTitle>
+                  <Search className="h-4 w-4 text-muted-foreground shrink-0" />
                 </>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 pb-4 pt-0">
               {isLoading && tickets.length === 0 ? (
                 <>
-                  <Skeleton className="h-10 w-20" />
+                  <Skeleton className="h-10 w-[40%]" />
                   <Skeleton className="mt-2 h-2 w-full" />
-                  <Skeleton className="mt-2 h-3 w-32" />
                 </>
               ) : i === 1 ? (
                 <>
-                  <div className="text-4xl font-bold tabular-nums">{pessoasDentro}</div>
-                  <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-secondary">
+                  <div className="text-2xl sm:text-4xl font-bold tabular-nums">{pessoasDentro}</div>
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
                     <div
                       className={`h-full rounded-full transition-all ${isNearCapacity ? "bg-destructive" : "bg-primary"
                         }`}
                       style={{ width: `${Math.min(percentage, 100)}%` }}
                     />
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-[10px] text-muted-foreground">
                     {percentage}% de {lotacaoMaxima}
                   </p>
                 </>
               ) : i === 2 ? (
                 <>
-                  <div className="text-4xl font-bold text-warning tabular-nums">
+                  <div className="text-2xl sm:text-4xl font-bold text-warning tabular-nums">
                     {tickets.filter((t) => !t.entrou).length}
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">ingressos nao utilizados</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">pendentes</p>
                 </>
               ) : (
                 <>
                   {lastEntry ? (
                     <>
-                      <div className="text-lg font-bold">{lastEntry.nome}</div>
-                      <p className="text-sm text-muted-foreground">{lastEntry.hora}</p>
+                      <div className="text-base sm:text-lg font-bold truncate">{lastEntry.nome}</div>
+                      <p className="text-xs text-muted-foreground">{lastEntry.hora}</p>
                     </>
                   ) : (
-                    <p className="text-sm text-muted-foreground">Nenhuma entrada registrada</p>
+                    <p className="text-xs text-muted-foreground italic">Nenhuma ainda</p>
                   )}
                 </>
               )}

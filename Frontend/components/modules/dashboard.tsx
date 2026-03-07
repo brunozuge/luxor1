@@ -115,17 +115,17 @@ export function DashboardModule() {
           <Skeleton className="h-8 w-48" />
           <Skeleton className="mt-2 h-4 w-64" />
         </div>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i} className="bg-card border-border">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-[60%]" />
                 <Skeleton className="h-4 w-4 rounded-full" />
               </CardHeader>
               <CardContent>
-                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-8 w-[40%]" />
                 <Skeleton className="mt-2 h-2 w-full" />
-                <Skeleton className="mt-2 h-3 w-32" />
+                <Skeleton className="mt-2 h-3 w-[70%]" />
               </CardContent>
             </Card>
           ))}
@@ -137,7 +137,7 @@ export function DashboardModule() {
                 <Skeleton className="h-5 w-32" />
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <Skeleton className="h-12 w-full" />
                   <Skeleton className="h-12 w-full" />
                   <Skeleton className="h-12 w-full" />
@@ -161,7 +161,7 @@ export function DashboardModule() {
       </div>
 
       {/* Main Stats */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Pessoas Dentro</CardTitle>
@@ -237,7 +237,7 @@ export function DashboardModule() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold">{tickets.length}</div>
                 <p className="text-xs text-muted-foreground">Total</p>
@@ -269,7 +269,7 @@ export function DashboardModule() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold">{barSales.length}</div>
                 <p className="text-xs text-muted-foreground">Vendas</p>
@@ -308,7 +308,7 @@ export function DashboardModule() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold">{camaroteTables.length}</div>
                 <p className="text-xs text-muted-foreground">Mesas</p>

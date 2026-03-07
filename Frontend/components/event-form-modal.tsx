@@ -70,61 +70,60 @@ export function EventFormModal({ open, onOpenChange, initialData }: EventFormMod
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="w-[95vw] sm:max-w-[425px] overflow-y-auto max-h-[90vh] z-[110]">
-                <form onSubmit={handleSubmit}>
-                    <DialogHeader>
-                        <DialogTitle>{isEdit ? "Editar Evento" : "Criar Novo Evento"}</DialogTitle>
-                        <DialogDescription>
-                            {isEdit ? "Atualize as informações principais da sua festa." : "Preencha o nome e escolha a cor de destaque para o seu evento."}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="nome">Nome do Evento</Label>
+            <DialogContent className="max-w-[95vw] sm:max-w-md bg-card text-card-foreground p-0 overflow-hidden flex flex-col max-h-[90vh] z-[110]">
+                <DialogHeader className="p-6 pb-2">
+                    <DialogTitle>{isEdit ? "Editar Evento" : "Criar Novo Evento"}</DialogTitle>
+                    <DialogDescription>
+                        {isEdit ? "Atualize as informações principais da sua festa." : "Preencha o nome e escolha a cor de destaque para o seu evento."}
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 pt-2 flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor="nome">Nome do Evento</Label>
+                        <Input
+                            id="nome"
+                            placeholder="Ex: Baile do Havaí 2024"
+                            value={formData.nome}
+                            onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                        />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor="primary">Cor do Evento</Label>
+                        <div className="flex gap-2">
                             <Input
-                                id="nome"
-                                placeholder="Ex: Baile do Havaí 2024"
-                                value={formData.nome}
-                                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                                id="primary"
+                                type="color"
+                                className="h-10 w-12 p-1"
+                                value={formData.cor_primaria}
+                                onChange={(e) => setFormData({ ...formData, cor_primaria: e.target.value })}
+                            />
+                            <Input
+                                className="flex-1"
+                                value={formData.cor_primaria}
+                                onChange={(e) => setFormData({ ...formData, cor_primaria: e.target.value })}
                             />
                         </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="primary">Cor do Evento</Label>
-                            <div className="flex gap-2">
-                                <Input
-                                    id="primary"
-                                    type="color"
-                                    className="h-10 w-12 p-1"
-                                    value={formData.cor_primaria}
-                                    onChange={(e) => setFormData({ ...formData, cor_primaria: e.target.value })}
-                                />
-                                <Input
-                                    className="flex-1"
-                                    value={formData.cor_primaria}
-                                    onChange={(e) => setFormData({ ...formData, cor_primaria: e.target.value })}
-                                />
-                            </div>
-                        </div>
+                    </div>
 
-                        <div className="mt-2 flex items-center gap-3 rounded-lg border border-dashed border-border p-4 bg-muted/30">
-                            <div className="p-2 rounded-md" style={{ backgroundColor: formData.cor_primaria }}>
-                                <Palette className="h-5 w-5 text-white" />
-                            </div>
-                            <div className="text-sm">
-                                <p className="font-medium">Visualização</p>
-                                <p className="text-muted-foreground text-xs">Esta cor será usada para identificar sua festa.</p>
-                            </div>
+                    <div className="mt-2 flex items-center gap-3 rounded-lg border border-dashed border-border p-4 bg-muted/30">
+                        <div className="p-2 rounded-md" style={{ backgroundColor: formData.cor_primaria }}>
+                            <Palette className="h-5 w-5 text-white" />
+                        </div>
+                        <div className="text-sm">
+                            <p className="font-medium">Visualização</p>
+                            <p className="text-muted-foreground text-xs">Esta cor será usada para identificar sua festa.</p>
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+
+                    <div className="pt-4 sticky bottom-0 bg-card flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
                             Cancelar
                         </Button>
-                        <Button type="submit" disabled={loading} className="bg-red-600 hover:bg-red-700 text-white">
+                        <Button type="submit" disabled={loading} className="bg-red-600 hover:bg-red-700 text-white w-full sm:w-auto">
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {isEdit ? "Salvar Alterações" : "Criar Evento"}
                         </Button>
-                    </DialogFooter>
+                    </div>
                 </form>
             </DialogContent>
         </Dialog>

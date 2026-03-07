@@ -72,12 +72,12 @@ export function ListaModule() {
     return (
         <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
+                <div className="flex flex-col gap-1">
                     <h1 className="text-2xl font-bold text-foreground">Listas de Convidados</h1>
                     <p className="text-sm text-muted-foreground">Gerencie grupos e listas nominais</p>
                 </div>
-                <div className="flex gap-2">
-                    <Button onClick={handleOpenCreate} className="bg-red-600 hover:bg-red-700 text-white">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button onClick={handleOpenCreate} className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white">
                         <Plus className="mr-2 h-4 w-4" /> Criar Nova Lista
                     </Button>
                 </div>
@@ -110,66 +110,75 @@ export function ListaModule() {
                         </Button>
                     )}
                 </div>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Grupo / Lista</TableHead>
-                            <TableHead>Nomes</TableHead>
-                            <TableHead className="w-[100px] text-right">Ações</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredList.length === 0 ? (
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
                             <TableRow>
-                                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                                    {searchTerm ? "Nenhuma lista encontrada." : "Nenhuma lista cadastrada."}
-                                </TableCell>
+                                <TableHead>Grupo / Lista</TableHead>
+                                <TableHead className="hidden sm:table-cell">Integrantes</TableHead>
+                                <TableHead className="w-[100px] text-right">Ações</TableHead>
                             </TableRow>
-                        ) : (
-                            filteredList.map((item) => (
-                                <TableRow key={item.id}>
-                                    <TableCell className="font-bold align-top py-4">{item.nome}</TableCell>
-                                    <TableCell className="text-sm text-muted-foreground max-w-md py-4">
-                                        <div className="whitespace-pre-wrap line-clamp-3">
-                                            {item.descricao || <span className="italic opacity-50">Sem nomes cadastrados</span>}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right align-top py-4">
-                                        <div className="flex justify-end gap-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleEdit(item)}
-                                                className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => setItemToDelete(item.id)}
-                                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredList.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                                        {searchTerm ? "Nenhuma lista encontrada." : "Nenhuma lista cadastrada."}
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
+                            ) : (
+                                filteredList.map((item) => (
+                                    <TableRow key={item.id}>
+                                        <TableCell className="font-bold align-top py-4">
+                                            <div className="flex flex-col gap-1">
+                                                <span>{item.nome}</span>
+                                                <div className="text-[10px] text-muted-foreground sm:hidden line-clamp-2 italic font-normal">
+                                                    {item.descricao || "Vazia"}
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-sm text-muted-foreground max-w-md py-4 hidden sm:table-cell">
+                                            <div className="whitespace-pre-wrap line-clamp-3">
+                                                {item.descricao || <span className="italic opacity-50">Sem nomes cadastrados</span>}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right align-top py-4">
+                                            <div className="flex justify-end gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleEdit(item)}
+                                                    className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => setItemToDelete(item.id)}
+                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             </div>
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="sm:max-w-lg bg-card border-border">
-                    <DialogHeader>
+                <DialogContent className="max-w-[95vw] sm:max-w-md bg-card border-border p-0 overflow-hidden flex flex-col max-h-[90vh]">
+                    <DialogHeader className="p-6 pb-2">
                         <DialogTitle>{editingItem ? "Editar Lista" : "Criar Nova Lista"}</DialogTitle>
                         <DialogDescription>
                             {editingItem ? "Edite o nome ou os integrantes da lista." : "Crie um novo grupo de convidados com nome e lista de integrantes."}
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="flex flex-col gap-4 py-4">
+                    <div className="flex-1 overflow-y-auto p-6 pt-2 flex flex-col gap-4">
                         <div className="grid gap-2">
                             <Label>Nome do Grupo (ex: VIP, Promoters, Staff)</Label>
                             <Input
@@ -181,18 +190,20 @@ export function ListaModule() {
                         <div className="grid gap-2">
                             <Label>Nomes dos Integrantes (Pode colar vários de uma vez)</Label>
                             <textarea
-                                className="min-h-[300px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                className="min-h-[200px] sm:min-h-[300px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 placeholder={"Insira os nomes aqui...\nEx:\nJoão Silva\nMaria Santos\nPedro Oliveira"}
                                 value={formData.descricao}
                                 onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
                             />
                         </div>
-                        <Button
-                            onClick={handleSubmit}
-                            className="bg-red-600 hover:bg-red-700 text-white"
-                        >
-                            {editingItem ? "Salvar Alterações" : "Criar Lista"}
-                        </Button>
+                        <div className="pt-2 sticky bottom-0 bg-card">
+                            <Button
+                                onClick={handleSubmit}
+                                className="w-full bg-red-600 hover:bg-red-700 text-white"
+                            >
+                                {editingItem ? "Salvar Alterações" : "Criar Lista"}
+                            </Button>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

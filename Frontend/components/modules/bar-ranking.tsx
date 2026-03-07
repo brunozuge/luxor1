@@ -205,7 +205,7 @@ function PodiumCard({
       initial={{ opacity: 0, y: 40, scale: 0.9 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay, duration: 0.5, type: "spring", stiffness: 100 }}
-      className={`relative flex w-28 sm:w-36 flex-col items-center ${rank === 1 ? "z-10" : "z-0"}`}
+      className={`relative flex w-[30%] max-w-[144px] flex-col items-center ${rank === 1 ? "z-10" : "z-0"}`}
     >
       {/* Crown / Medal icon floating above */}
       <motion.div

@@ -161,108 +161,114 @@ export function ColaboradoresModule() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold text-foreground">Colaboradores</h1>
           <p className="text-sm text-muted-foreground">
             Gerencie sua equipe de trabalho
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(v) => {
-          setDialogOpen(v)
-          if (!v) {
-            setEditingId(null)
-            setErrors({})
-            setForm({ nome: "", cargo: "outro", telefone: "", ativo: true })
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button onClick={openNewDialog}>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Colaborador
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md bg-card text-card-foreground">
-            <DialogHeader>
-              <DialogTitle>
-                {editingId ? "Editar Colaborador" : "Adicionar Colaborador"}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <Label>Nome *</Label>
-                <Input
-                  id="nome"
-                  value={form.nome}
-                  onChange={(e) => {
-                    setForm({ ...form, nome: e.target.value })
-                    if (errors.nome) setErrors(prev => ({ ...prev, nome: false }))
-                  }}
-                  placeholder="Nome do colaborador"
-                  className={errors.nome ? "border-destructive focus-visible:ring-destructive" : ""}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="cargo">Cargo *</Label>
-                <Select
-                  value={form.cargo}
-                  onValueChange={(v) => {
-                    setForm({ ...form, cargo: v as any })
-                    if (errors.cargo) setErrors(prev => ({ ...prev, cargo: false }))
-                  }}
-                >
-                  <SelectTrigger className={errors.cargo ? "border-destructive focus-visible:ring-destructive" : ""}>
-                    <SelectValue placeholder="Selecione o cargo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="barman">Barman</SelectItem>
-                    <SelectItem value="garcom">Garcom</SelectItem>
-                    <SelectItem value="porteiro">Porteiro</SelectItem>
-                    <SelectItem value="promoter">Promoter</SelectItem>
-                    <SelectItem value="seguranca">Seguranca</SelectItem>
-                    <SelectItem value="caixa">Caixa</SelectItem>
-                    <SelectItem value="outro">Outro</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="tel">Telefone *</Label>
-                <Input
-                  id="tel"
-                  value={form.telefone}
-                  onChange={(e) => {
-                    const onlyNums = e.target.value.replace(/\D/g, "")
-                    setForm({ ...form, telefone: onlyNums })
-                    if (errors.telefone) setErrors(prev => ({ ...prev, telefone: false }))
-                  }}
-                  placeholder="(00) 00000-0000"
-                  className={errors.telefone ? "border-destructive focus-visible:ring-destructive" : ""}
-                />
-              </div>
-              <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                <div className="flex flex-col gap-0.5">
-                  <Label>Colaborador Ativo</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Determina se o colaborador aparece nas listas
-                  </p>
-                </div>
-                <Switch
-                  checked={form.ativo}
-                  onCheckedChange={(v) => setForm({ ...form, ativo: v })}
-                />
-              </div>
-              <Button type="submit" className="w-full">
-                {editingId ? "Salvar" : "Adicionar"}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Dialog open={dialogOpen} onOpenChange={(v) => {
+            setDialogOpen(v)
+            if (!v) {
+              setEditingId(null)
+              setErrors({})
+              setForm({ nome: "", cargo: "outro", telefone: "", ativo: true })
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button onClick={openNewDialog} className="w-full sm:w-auto">
+                <Plus className="mr-2 h-4 w-4" />
+                Novo Colaborador
               </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="max-w-[95vw] sm:max-w-md bg-card text-card-foreground p-0 overflow-hidden flex flex-col max-h-[90vh]">
+              <DialogHeader className="p-6 pb-2">
+                <DialogTitle>
+                  {editingId ? "Editar Colaborador" : "Adicionar Colaborador"}
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 pt-2 flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label>Nome *</Label>
+                  <Input
+                    id="nome"
+                    value={form.nome}
+                    onChange={(e) => {
+                      setForm({ ...form, nome: e.target.value })
+                      if (errors.nome) setErrors(prev => ({ ...prev, nome: false }))
+                    }}
+                    placeholder="Nome do colaborador"
+                    className={errors.nome ? "border-destructive focus-visible:ring-destructive" : ""}
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="cargo">Cargo *</Label>
+                    <Select
+                      value={form.cargo}
+                      onValueChange={(v) => {
+                        setForm({ ...form, cargo: v as any })
+                        if (errors.cargo) setErrors(prev => ({ ...prev, cargo: false }))
+                      }}
+                    >
+                      <SelectTrigger className={errors.cargo ? "border-destructive focus-visible:ring-destructive" : ""}>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="barman">Barman</SelectItem>
+                        <SelectItem value="garcom">Garçom</SelectItem>
+                        <SelectItem value="porteiro">Porteiro</SelectItem>
+                        <SelectItem value="promoter">Promoter</SelectItem>
+                        <SelectItem value="seguranca">Segurança</SelectItem>
+                        <SelectItem value="caixa">Caixa</SelectItem>
+                        <SelectItem value="outro">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="tel">Telefone *</Label>
+                    <Input
+                      id="tel"
+                      value={form.telefone}
+                      onChange={(e) => {
+                        const onlyNums = e.target.value.replace(/\D/g, "")
+                        setForm({ ...form, telefone: onlyNums })
+                        if (errors.telefone) setErrors(prev => ({ ...prev, telefone: false }))
+                      }}
+                      placeholder="(00) 00000-0000"
+                      className={errors.telefone ? "border-destructive focus-visible:ring-destructive" : ""}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                  <div className="flex flex-col gap-0.5">
+                    <Label>Colaborador Ativo</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Determina se o colaborador aparece nas listas
+                    </p>
+                  </div>
+                  <Switch
+                    checked={form.ativo}
+                    onCheckedChange={(v) => setForm({ ...form, ativo: v })}
+                  />
+                </div>
+                <div className="pt-2 sticky bottom-0 bg-card">
+                  <Button type="submit" className="w-full">
+                    {editingId ? "Salvar" : "Adicionar"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         {[1, 2, 3].map((i) => (
-          <Card key={i} className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <Card key={i} className={`bg-card border-border ${i === 3 ? "col-span-2 sm:col-span-1" : ""}`}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 px-4 pt-4">
               {isLoading && colaboradores.length === 0 ? (
                 <>
                   <Skeleton className="h-4 w-24" />
@@ -270,30 +276,30 @@ export function ColaboradoresModule() {
                 </>
               ) : i === 1 ? (
                 <>
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Equipe</CardTitle>
-                  <UserCog className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-tight">Total Equipe</CardTitle>
+                  <UserCog className="h-4 w-4 text-primary shrink-0" />
                 </>
               ) : i === 2 ? (
                 <>
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Ativos</CardTitle>
-                  <div className="h-2 w-2 rounded-full bg-success" />
+                  <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-tight">Ativos</CardTitle>
+                  <div className="h-2 w-2 rounded-full bg-success shrink-0" />
                 </>
               ) : (
                 <>
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Inativos</CardTitle>
-                  <div className="h-2 w-2 rounded-full bg-destructive" />
+                  <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-tight">Inativos</CardTitle>
+                  <div className="h-2 w-2 rounded-full bg-destructive shrink-0" />
                 </>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 pb-4 pt-0">
               {isLoading && colaboradores.length === 0 ? (
                 <Skeleton className="h-8 w-16" />
               ) : i === 1 ? (
-                <div className="text-2xl font-bold">{colaboradores.length}</div>
+                <div className="text-xl sm:text-2xl font-bold">{colaboradores.length}</div>
               ) : i === 2 ? (
-                <div className="text-2xl font-bold text-success">{ativos}</div>
+                <div className="text-xl sm:text-2xl font-bold text-success">{ativos}</div>
               ) : (
-                <div className="text-2xl font-bold text-destructive">{inativos}</div>
+                <div className="text-xl sm:text-2xl font-bold text-destructive">{inativos}</div>
               )}
             </CardContent>
           </Card>
@@ -331,14 +337,14 @@ export function ColaboradoresModule() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="border-border hover:bg-transparent">
+              <TableRow className="border-border hover:bg-transparent text-[10px] uppercase">
                 <TableHead>Nome</TableHead>
                 <TableHead>Cargo</TableHead>
-                <TableHead>Telefone</TableHead>
-                <TableHead>Vendas (Bar)</TableHead>
-                <TableHead>Faturado</TableHead>
+                <TableHead className="hidden sm:table-cell">Telefone</TableHead>
+                <TableHead className="hidden md:table-cell">Vendas</TableHead>
+                <TableHead className="hidden md:table-cell">Faturado</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Acoes</TableHead>
+                <TableHead className="text-right w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -357,18 +363,23 @@ export function ColaboradoresModule() {
               ) : (
                 filtered.map((c) => (
                   <TableRow key={c.id} className="border-border">
-                    <TableCell className="font-medium">{c.nome}</TableCell>
+                    <TableCell className="font-medium text-xs">
+                      <div className="flex flex-col">
+                        <span>{c.nome}</span>
+                        <span className="text-[10px] sm:hidden text-muted-foreground">{c.telefone}</span>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className={cargoColors[c.cargo]}
+                        className={`${cargoColors[c.cargo]} text-[10px] px-1.5 h-5`}
                       >
                         {cargoLabels[c.cargo]}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       {c.telefone ? (
-                        <span className="flex items-center gap-1 text-muted-foreground">
+                        <span className="flex items-center gap-1 text-muted-foreground text-xs">
                           <Phone className="h-3 w-3" />
                           {c.telefone}
                         </span>
@@ -376,29 +387,18 @@ export function ColaboradoresModule() {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="font-mono">{c.qtdVendas}</TableCell>
-                    <TableCell className="font-semibold">
+                    <TableCell className="font-mono text-xs hidden md:table-cell">{c.qtdVendas}</TableCell>
+                    <TableCell className="font-semibold text-xs hidden md:table-cell">
                       {c.totalVendas > 0
                         ? `R$ ${c.totalVendas.toLocaleString("pt-BR")}`
                         : "-"}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={c.ativo}
-                          onCheckedChange={() => handleToggleAtivo(c.id)}
-                        />
-                        <Badge
-                          variant="outline"
-                          className={
-                            c.ativo
-                              ? "bg-success/20 text-success border-success/30"
-                              : "bg-destructive/20 text-destructive border-destructive/30"
-                          }
-                        >
-                          {c.ativo ? "Ativo" : "Inativo"}
-                        </Badge>
-                      </div>
+                      <Switch
+                        checked={c.ativo}
+                        onCheckedChange={() => handleToggleAtivo(c.id)}
+                        className="scale-75 origin-left"
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">

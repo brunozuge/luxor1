@@ -236,156 +236,167 @@ export function PessoasModule() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold text-foreground">Cadastro de Pessoas</h1>
           <p className="text-sm text-muted-foreground">
             {pessoas.length} pessoas cadastradas
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(v) => {
-          setDialogOpen(v)
-          if (!v) {
-            setEditingId(null)
-            setErrors({})
-            setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "" })
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button onClick={openNewDialog}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Pessoa
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md bg-card text-card-foreground">
-            <DialogHeader>
-              <DialogTitle>{editingId ? "Editar Pessoa" : "Cadastrar Pessoa"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="nome">Nome *</Label>
-                <Input
-                  id="nome"
-                  value={form.nome}
-                  onChange={(e) => {
-                    setForm({ ...form, nome: e.target.value })
-                    if (errors.nome) setErrors(prev => ({ ...prev, nome: false }))
-                  }}
-                  placeholder="Nome completo"
-                  className={errors.nome ? "border-destructive focus-visible:ring-destructive" : ""}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="instagram">Instagram</Label>
-                <Input
-                  id="instagram"
-                  value={form.instagram}
-                  onChange={(e) => {
-                    setForm({ ...form, instagram: e.target.value })
-                    if (errors.instagram) setErrors(prev => ({ ...prev, instagram: false }))
-                  }}
-                  placeholder="@usuario"
-                  className={errors.instagram ? "border-destructive focus-visible:ring-destructive" : ""}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="cpfRg">CPF/RG/Termo *</Label>
-                <Input
-                  id="cpfRg"
-                  value={form.cpfRg}
-                  onChange={(e) => {
-                    setForm({ ...form, cpfRg: formatCPF(e.target.value) })
-                    if (errors.cpfRg) setErrors(prev => ({ ...prev, cpfRg: false }))
-                  }}
-                  placeholder="000.000.000-00"
-                  className={errors.cpfRg ? "border-destructive focus-visible:ring-destructive" : ""}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="dataNascimento">Data de Nascimento *</Label>
-                <Input
-                  id="dataNascimento"
-                  type="date"
-                  value={form.dataNascimento}
-                  onChange={(e) => {
-                    setForm({ ...form, dataNascimento: e.target.value })
-                    if (errors.dataNascimento) setErrors(prev => ({ ...prev, dataNascimento: false }))
-                  }}
-                  className={errors.dataNascimento ? "border-destructive focus-visible:ring-destructive" : ""}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label>Tipo de Ingresso *</Label>
-                <Select
-                  value={form.tipoIngresso}
-                  onValueChange={(v) => {
-                    setForm({ ...form, tipoIngresso: v as TicketType })
-                    if (errors.tipoIngresso) setErrors(prev => ({ ...prev, tipoIngresso: false }))
-                  }}
-                >
-                  <SelectTrigger className={errors.tipoIngresso ? "border-destructive focus-visible:ring-destructive" : ""}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pista">Pista</SelectItem>
-                    <SelectItem value="camarote">Camarote</SelectItem>
-                    <SelectItem value="vip">VIP</SelectItem>
-                    <SelectItem value="free">Free</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="obs">Observacao</Label>
-                <Textarea
-                  id="obs"
-                  value={form.observacao}
-                  onChange={(e) => setForm({ ...form, observacao: e.target.value })}
-                  placeholder="Ex: influencer, amigo, etc."
-                  rows={2}
-                />
-              </div>
-              <Button type="submit" className="w-full">{editingId ? "Salvar Alteracoes" : "Cadastrar"}</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Dialog open={dialogOpen} onOpenChange={(v) => {
+            setDialogOpen(v)
+            if (!v) {
+              setEditingId(null)
+              setErrors({})
+              setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "" })
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button onClick={openNewDialog} className="w-full sm:w-auto">
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Pessoa
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-[95vw] sm:max-w-xl bg-card text-card-foreground p-0 overflow-hidden flex flex-col max-h-[90vh]">
+              <DialogHeader className="p-6 pb-2">
+                <DialogTitle>{editingId ? "Editar Pessoa" : "Cadastrar Pessoa"}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 pt-2 flex flex-col gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="nome">Nome *</Label>
+                    <Input
+                      id="nome"
+                      value={form.nome}
+                      onChange={(e) => {
+                        setForm({ ...form, nome: e.target.value })
+                        if (errors.nome) setErrors(prev => ({ ...prev, nome: false }))
+                      }}
+                      placeholder="Nome completo"
+                      className={errors.nome ? "border-destructive focus-visible:ring-destructive" : ""}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="instagram">Instagram</Label>
+                    <Input
+                      id="instagram"
+                      value={form.instagram}
+                      onChange={(e) => {
+                        setForm({ ...form, instagram: e.target.value })
+                        if (errors.instagram) setErrors(prev => ({ ...prev, instagram: false }))
+                      }}
+                      placeholder="@usuario"
+                      className={errors.instagram ? "border-destructive focus-visible:ring-destructive" : ""}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="cpfRg">CPF/RG/Termo *</Label>
+                    <Input
+                      id="cpfRg"
+                      value={form.cpfRg}
+                      onChange={(e) => {
+                        setForm({ ...form, cpfRg: formatCPF(e.target.value) })
+                        if (errors.cpfRg) setErrors(prev => ({ ...prev, cpfRg: false }))
+                      }}
+                      placeholder="000.000.000-00"
+                      className={errors.cpfRg ? "border-destructive focus-visible:ring-destructive" : ""}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="dataNascimento">Data de Nascimento *</Label>
+                    <Input
+                      id="dataNascimento"
+                      type="date"
+                      value={form.dataNascimento}
+                      onChange={(e) => {
+                        setForm({ ...form, dataNascimento: e.target.value })
+                        if (errors.dataNascimento) setErrors(prev => ({ ...prev, dataNascimento: false }))
+                      }}
+                      className={errors.dataNascimento ? "border-destructive focus-visible:ring-destructive" : ""}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label>Tipo de Ingresso *</Label>
+                  <Select
+                    value={form.tipoIngresso}
+                    onValueChange={(v) => {
+                      setForm({ ...form, tipoIngresso: v as TicketType })
+                      if (errors.tipoIngresso) setErrors(prev => ({ ...prev, tipoIngresso: false }))
+                    }}
+                  >
+                    <SelectTrigger className={errors.tipoIngresso ? "border-destructive focus-visible:ring-destructive" : ""}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pista">Pista</SelectItem>
+                      <SelectItem value="camarote">Camarote</SelectItem>
+                      <SelectItem value="vip">VIP</SelectItem>
+                      <SelectItem value="free">Free</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="obs">Observação</Label>
+                  <Textarea
+                    id="obs"
+                    value={form.observacao}
+                    onChange={(e) => setForm({ ...form, observacao: e.target.value })}
+                    placeholder="Ex: influencer, amigo, etc."
+                    rows={2}
+                  />
+                </div>
+                <div className="pt-2 sticky bottom-0 bg-card">
+                  <Button type="submit" className="w-full">{editingId ? "Salvar Alterações" : "Cadastrar"}</Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         {[1, 2, 3].map((i) => (
-          <Card key={i} className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <Card key={i} className={`bg-card border-border ${i === 3 ? "col-span-2 sm:col-span-1" : ""}`}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 px-4 pt-4">
               {isLoading && pessoas.length === 0 ? (
                 <>
-                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-[60%]" />
                   <Skeleton className="h-4 w-4" />
                 </>
               ) : i === 1 ? (
                 <>
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Pessoas</CardTitle>
-                  <Users className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-tight">Total Pessoas</CardTitle>
+                  <Users className="h-4 w-4 text-primary shrink-0" />
                 </>
               ) : i === 2 ? (
                 <>
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Maiores de Idade</CardTitle>
-                  <Users className="h-4 w-4 text-success" />
+                  <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-tight">Maiores Idade</CardTitle>
+                  <Users className="h-4 w-4 text-success shrink-0" />
                 </>
               ) : (
                 <>
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Menores de Idade</CardTitle>
-                  <Users className="h-4 w-4 text-warning" />
+                  <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-tight">Menores Idade</CardTitle>
+                  <Users className="h-4 w-4 text-warning shrink-0" />
                 </>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 pb-4 pt-0">
               {isLoading && pessoas.length === 0 ? (
-                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-8 w-[40%]" />
               ) : i === 1 ? (
-                <div className="text-2xl font-bold">{pessoas.length}</div>
+                <div className="text-xl sm:text-2xl font-bold">{pessoas.length}</div>
               ) : i === 2 ? (
-                <div className="text-2xl font-bold">
+                <div className="text-xl sm:text-2xl font-bold">
                   {pessoas.filter((p) => calcAge(p.dataNascimento) >= 18).length}
                 </div>
               ) : (
-                <div className="text-2xl font-bold text-warning">
+                <div className="text-xl sm:text-2xl font-bold text-warning">
                   {pessoas.filter((p) => calcAge(p.dataNascimento) < 18).length}
                 </div>
               )}
@@ -410,11 +421,11 @@ export function PessoasModule() {
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
                 <TableHead>Nome</TableHead>
-                <TableHead>Instagram</TableHead>
-                <TableHead>Documento</TableHead>
+                <TableHead className="hidden md:table-cell">Instagram</TableHead>
+                <TableHead className="hidden sm:table-cell">Documento</TableHead>
                 <TableHead>Idade</TableHead>
                 <TableHead>Ingresso</TableHead>
-                <TableHead>Obs.</TableHead>
+                <TableHead className="hidden lg:table-cell">Obs.</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
@@ -437,20 +448,25 @@ export function PessoasModule() {
                   const isMenor = age < 18
                   return (
                     <TableRow key={p.id} className="border-border">
-                      <TableCell className="font-medium">{p.nome}</TableCell>
-                      <TableCell className="text-muted-foreground">{p.instagram || "-"}</TableCell>
-                      <TableCell className="text-muted-foreground font-mono text-xs">{formatCPF(p.cpfRg) || "-"}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col">
+                          <span>{p.nome}</span>
+                          <span className="text-[10px] text-muted-foreground sm:hidden">{formatCPF(p.cpfRg)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground hidden md:table-cell">{p.instagram || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground font-mono text-xs hidden sm:table-cell">{formatCPF(p.cpfRg) || "-"}</TableCell>
                       <TableCell>
-                        <span className={isMenor ? "text-warning font-semibold" : ""}>
-                          {age} {isMenor ? "(menor)" : ""}
+                        <span className={isMenor ? "text-warning font-semibold text-xs" : "text-xs"}>
+                          {age}{isMenor ? "m" : ""}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge className={ticketTypeColors[p.tipoIngresso]}>
+                        <Badge className={`${ticketTypeColors[p.tipoIngresso]} text-[10px] px-1.5 h-5`}>
                           {ticketTypeLabels[p.tipoIngresso]}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-xs max-w-32 truncate">
+                      <TableCell className="text-muted-foreground text-xs max-w-32 truncate hidden lg:table-cell">
                         {p.observacao || "-"}
                       </TableCell>
                       <TableCell>

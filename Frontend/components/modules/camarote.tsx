@@ -141,118 +141,122 @@ export function CamaroteModule() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold text-foreground">Camarote / VIP</h1>
           <p className="text-sm text-muted-foreground">
-            Gestao exclusiva de mesas e consumo
+            Gestão exclusiva de mesas e consumo
           </p>
         </div>
-        <Dialog open={tableDialogOpen} onOpenChange={(v) => {
-          setTableDialogOpen(v)
-          if (!v) {
-            setEditingTableId(null)
-            setErrors({})
-            setTableForm({ nome: "", garcom: "", cor_pulseira: "" })
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button onClick={() => {
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Dialog open={tableDialogOpen} onOpenChange={(v) => {
+            setTableDialogOpen(v)
+            if (!v) {
               setEditingTableId(null)
+              setErrors({})
               setTableForm({ nome: "", garcom: "", cor_pulseira: "" })
-            }}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Mesa
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md bg-card text-card-foreground">
-            <DialogHeader>
-              <DialogTitle>{editingTableId ? "Editar Mesa" : "Adicionar Mesa"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleAddTable} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <Label>Nome da Mesa *</Label>
-                <Input
-                  value={tableForm.nome}
-                  onChange={(e) => {
-                    setTableForm({ ...tableForm, nome: e.target.value })
-                    if (errors.nome) setErrors(prev => ({ ...prev, nome: false }))
-                  }}
-                  placeholder="Ex: Mesa 3"
-                  className={errors.nome ? "border-destructive focus-visible:ring-destructive" : ""}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label>Garcom Responsavel *</Label>
-                <Select
-                  value={tableForm.garcom}
-                  onValueChange={(v) => {
-                    setTableForm({ ...tableForm, garcom: v })
-                    if (errors.garcom) setErrors(prev => ({ ...prev, garcom: false }))
-                  }}
-                >
-                  <SelectTrigger className={errors.garcom ? "border-destructive focus-visible:ring-destructive" : ""}>
-                    <SelectValue placeholder="Selecione o garcom" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {colaboradores
-                      .filter((c) => c.ativo)
-                      .map((c) => (
-                        <SelectItem key={c.id} value={c.nome}>
-                          {c.nome} ({c.cargo})
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label>Cor da Pulseira</Label>
-                <Input
-                  value={tableForm.cor_pulseira}
-                  onChange={(e) => setTableForm({ ...tableForm, cor_pulseira: e.target.value })}
-                  placeholder="Ex: Dourada, Black, etc."
-                />
-              </div>
-              <Button type="submit" className="w-full">{editingTableId ? "Salvar Alteracoes" : "Adicionar"}</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button onClick={() => {
+                setEditingTableId(null)
+                setTableForm({ nome: "", garcom: "", cor_pulseira: "" })
+              }} className="w-full sm:w-auto">
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Mesa
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-[95vw] sm:max-w-md bg-card text-card-foreground p-0 overflow-hidden flex flex-col max-h-[90vh]">
+              <DialogHeader className="p-6 pb-2">
+                <DialogTitle>{editingTableId ? "Editar Mesa" : "Adicionar Mesa"}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleAddTable} className="flex-1 overflow-y-auto p-6 pt-2 flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label>Nome da Mesa *</Label>
+                  <Input
+                    value={tableForm.nome}
+                    onChange={(e) => {
+                      setTableForm({ ...tableForm, nome: e.target.value })
+                      if (errors.nome) setErrors(prev => ({ ...prev, nome: false }))
+                    }}
+                    placeholder="Ex: Mesa 3"
+                    className={errors.nome ? "border-destructive focus-visible:ring-destructive" : ""}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label>Garçom Responsável *</Label>
+                  <Select
+                    value={tableForm.garcom}
+                    onValueChange={(v) => {
+                      setTableForm({ ...tableForm, garcom: v })
+                      if (errors.garcom) setErrors(prev => ({ ...prev, garcom: false }))
+                    }}
+                  >
+                    <SelectTrigger className={errors.garcom ? "border-destructive focus-visible:ring-destructive" : ""}>
+                      <SelectValue placeholder="Selecione o garçom" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {colaboradores
+                        .filter((c) => c.ativo)
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.nome}>
+                            {c.nome} ({c.cargo})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label>Cor da Pulseira</Label>
+                  <Input
+                    value={tableForm.cor_pulseira}
+                    onChange={(e) => setTableForm({ ...tableForm, cor_pulseira: e.target.value })}
+                    placeholder="Ex: Dourada, Black, etc."
+                  />
+                </div>
+                <div className="pt-2 sticky bottom-0 bg-card">
+                  <Button type="submit" className="w-full">{editingTableId ? "Salvar Alterações" : "Adicionar"}</Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         {[1, 2, 3].map((i) => (
-          <Card key={i} className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <Card key={i} className={`bg-card border-border ${i === 3 ? "col-span-2 sm:col-span-1" : ""}`}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 px-4 pt-4">
               {isLoading && camaroteTables.length === 0 ? (
                 <>
-                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-[60%]" />
                   <Skeleton className="h-4 w-4" />
                 </>
               ) : i === 1 ? (
                 <>
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Mesas</CardTitle>
-                  <Crown className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-tight">Total Mesas</CardTitle>
+                  <Crown className="h-4 w-4 text-primary shrink-0" />
                 </>
               ) : i === 2 ? (
                 <>
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Garrafas</CardTitle>
-                  <Wine className="h-4 w-4 text-secondary" />
+                  <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-tight">Garrafas</CardTitle>
+                  <Wine className="h-4 w-4 text-secondary shrink-0" />
                 </>
               ) : (
                 <>
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Consumo</CardTitle>
-                  <DollarSign className="h-4 w-4 text-success" />
+                  <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-tight">Total Consumo</CardTitle>
+                  <DollarSign className="h-4 w-4 text-success shrink-0" />
                 </>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 pb-4 pt-0">
               {isLoading && camaroteTables.length === 0 ? (
-                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-8 w-[40%]" />
               ) : i === 1 ? (
-                <div className="text-2xl font-bold">{camaroteTables.length}</div>
+                <div className="text-xl sm:text-2xl font-bold">{camaroteTables.length}</div>
               ) : i === 2 ? (
-                <div className="text-2xl font-bold">{totalGarrafas}</div>
+                <div className="text-xl sm:text-2xl font-bold">{totalGarrafas}</div>
               ) : (
-                <div className="text-2xl font-bold text-success">
+                <div className="text-xl sm:text-2xl font-bold text-success truncate">
                   R$ {totalCamaroteRevenue.toLocaleString("pt-BR")}
                 </div>
               )}
@@ -484,11 +488,11 @@ export function CamaroteModule() {
           setPersonForm("")
         }
       }}>
-        <DialogContent className="sm:max-w-md bg-card text-card-foreground">
-          <DialogHeader>
-            <DialogTitle>Adicionar Pessoa a Mesa</DialogTitle>
+        <DialogContent className="max-w-[95vw] sm:max-w-md bg-card text-card-foreground p-0 overflow-hidden flex flex-col max-h-[90vh]">
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle>Adicionar Pessoa à Mesa</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleAddPerson} className="flex flex-col gap-4">
+          <form onSubmit={handleAddPerson} className="flex-1 overflow-y-auto p-6 pt-2 flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label>Pessoa *</Label>
               <Select
@@ -510,7 +514,9 @@ export function CamaroteModule() {
                 </SelectContent>
               </Select>
             </div>
-            <Button type="submit" className="w-full">Adicionar</Button>
+            <div className="pt-2 sticky bottom-0 bg-card">
+              <Button type="submit" className="w-full">Adicionar</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
@@ -523,11 +529,11 @@ export function CamaroteModule() {
           setGarrafaForm("")
         }
       }}>
-        <DialogContent className="sm:max-w-md bg-card text-card-foreground">
-          <DialogHeader>
+        <DialogContent className="max-w-[95vw] sm:max-w-md bg-card text-card-foreground p-0 overflow-hidden flex flex-col max-h-[90vh]">
+          <DialogHeader className="p-6 pb-2">
             <DialogTitle>Adicionar Garrafa</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleAddGarrafa} className="flex flex-col gap-4">
+          <form onSubmit={handleAddGarrafa} className="flex-1 overflow-y-auto p-6 pt-2 flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label>Nome da Garrafa *</Label>
               <Input
@@ -540,7 +546,9 @@ export function CamaroteModule() {
                 className={errors.garrafa ? "border-destructive focus-visible:ring-destructive" : ""}
               />
             </div>
-            <Button type="submit" className="w-full">Adicionar</Button>
+            <div className="pt-2 sticky bottom-0 bg-card">
+              <Button type="submit" className="w-full">Adicionar</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

@@ -73,7 +73,7 @@ const EventCard = React.memo(({
 
                 {isExpanded && (
                     <div className="px-4 pb-4 sm:px-6 sm:pb-6 pt-2 border-t border-border animate-in slide-in-from-top-2 duration-300">
-                        <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
                             <div className="p-2 sm:p-3 rounded-lg bg-secondary/20 border border-border">
                                 <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 flex items-center gap-1 uppercase font-bold tracking-tighter">
                                     <DollarSign className="h-3 w-3" /> Total
@@ -202,9 +202,9 @@ export function FullScreenOverlays({ onNavigate }: { onNavigate?: (section: stri
     const { totalRevenue, totalColabs, totalTickets, totalTables, totalBottles, chartData, maxChartValue } = globalStats
 
     return (
-        <div className="flex flex-col animate-in fade-in zoom-in-95 duration-200">
-            <div className="mb-6 flex items-center justify-between">
-                <div className="flex items-center gap-4">
+        <div className="flex flex-col animate-in fade-in zoom-in-95 duration-200 min-h-full">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-4">
                     <h2 className="text-xl font-bold">
                         {overlay === "festas" ? "Minhas Festas" : "Eventos - Geral"}
                     </h2>
@@ -222,7 +222,8 @@ export function FullScreenOverlays({ onNavigate }: { onNavigate?: (section: stri
                     {isGlobalLoading && (
                         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground animate-pulse">
                             <TrendingUp className="h-3 w-3 animate-bounce" />
-                            Atualizando dados globais...
+                            <span className="hidden xs:inline">Atualizando dados globais...</span>
+                            <span className="xs:hidden">Atualizando...</span>
                         </div>
                     )}
                 </div>
