@@ -22,7 +22,7 @@ import { FullScreenOverlays } from "@/components/full-screen-overlays"
 const sectionTitles: Record<string, string> = {
   dashboard: "Dashboard",
   festas: "Minhas Festas",
-  eventpro: "Relatório Geral",
+  eventpro: "Eventos - Geral",
   pessoas: "Pessoas",
   lista: "Lista",
   ingressos: "Ingressos",

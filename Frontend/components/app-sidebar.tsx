@@ -46,7 +46,7 @@ import {
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
   { title: "Minhas Festas", icon: Calendar, id: "festas" },
-  { title: "Relatório Geral", icon: LayoutGrid, id: "eventpro" },
+  { title: "Eventos - Geral", icon: LayoutGrid, id: "eventpro" },
   { title: "Pessoas", icon: Users, id: "pessoas" },
   { title: "Lista", icon: ListTodo, id: "lista" },
   { title: "Ingressos", icon: Ticket, id: "ingressos" },
@@ -62,7 +62,7 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
-  const { pessoasDentro, lotacaoMaxima, eventos, selectedEventId, setSelectedEventId, currentEvento, isInitialLoad, setOverlay } = useEventData()
+  const { pessoasDentro, lotacaoMaxima, eventos, selectedEventId, setSelectedEventId, currentEvento, isInitialLoad, setOverlay, overlay } = useEventData()
   const { user, logout } = useAuth()
   const { setOpenMobile } = useSidebar()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
@@ -132,7 +132,9 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
                 <Crown className="size-4" />
               </div>
               <div className="flex flex-col gap-0.5 leading-none overflow-hidden">
-                <span className="font-semibold truncate">{currentEvento?.nome || "Selecione o Evento"}</span>
+                <span className="font-semibold truncate">
+                  {(overlay === "eventpro" || overlay === "festas") ? "Geral" : (currentEvento?.nome || "Selecione o Evento")}
+                </span>
                 <span className="text-xs text-muted-foreground truncate">EventPro • Gerenciar</span>
               </div>
               <ChevronDown className="ml-auto size-4 opacity-50" />
@@ -164,8 +166,8 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
                 <Crown className="size-4" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm">EventPro</span>
-                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Relatório Geral</span>
+                <span className="font-bold text-sm">Eventos - Geral</span>
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Visão Consolidada</span>
               </div>
             </DropdownMenuItem>
 

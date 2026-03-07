@@ -206,7 +206,7 @@ export function FullScreenOverlays({ onNavigate }: { onNavigate?: (section: stri
             <div className="mb-6 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <h2 className="text-xl font-bold">
-                        {overlay === "festas" ? "Minhas Festas" : "EventPro Geral"}
+                        {overlay === "festas" ? "Minhas Festas" : "Eventos - Geral"}
                     </h2>
                     {overlay === "festas" && (
                         <Button

@@ -15,7 +15,7 @@ import { CreateEventModal } from "./create-event-modal"
 import { Skeleton } from "./ui/skeleton"
 
 export function EventSwitcher({ className }: { className?: string }) {
-    const { currentEvento, setOverlay, mounted } = useEventData()
+    const { currentEvento, setOverlay, mounted, overlay } = useEventData()
 
     if (!mounted) {
         return (
@@ -42,7 +42,7 @@ export function EventSwitcher({ className }: { className?: string }) {
                         <div className="flex flex-col items-start leading-none">
                             <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Painel</span>
                             <span className="max-w-[120px] truncate text-sm font-semibold">
-                                {currentEvento?.nome || "Evento"}
+                                {(overlay === "eventpro" || overlay === "festas") ? "Geral" : (currentEvento?.nome || "Evento")}
                             </span>
                         </div>
                         <ChevronDown className="size-3.5 opacity-30" />
@@ -70,8 +70,8 @@ export function EventSwitcher({ className }: { className?: string }) {
                             <Crown className="size-4" />
                         </div>
                         <div className="flex flex-col">
-                            <span className="font-bold text-sm">EventPro</span>
-                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Relatório Geral</span>
+                            <span className="font-bold text-sm">Eventos - Geral</span>
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Visão Consolidada</span>
                         </div>
                     </DropdownMenuItem>
                 </DropdownMenuContent>

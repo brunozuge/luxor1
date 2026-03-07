@@ -14,14 +14,13 @@ trait BelongsToEvento
             if (app()->runningInConsole()) return;
 
             try {
-                if (!$model->evento_id && session()->has('evento_id')) {
-                    $model->evento_id = session('evento_id');
-                }
-                if (!$model->evento_id && request()->header('X-Evento-Id')) {
-                    $model->evento_id = request()->header('X-Evento-Id');
+                $eventoId = request()->header('X-Evento-Id') ?? request()->query('evento_id') ?? session('evento_id');
+
+                if (!$model->evento_id && $eventoId && $eventoId !== 'null' && $eventoId !== 'undefined') {
+                    $model->evento_id = $eventoId;
                 }
             } catch (\Throwable $e) {
-                // Ignore in case session/request are not available
+                // Ignore
             }
         });
 
@@ -29,15 +28,19 @@ trait BelongsToEvento
             if (app()->runningInConsole()) return;
 
             try {
-                $eventoId = request()->header('X-Evento-Id') ?? session('evento_id');
+                $request = request();
+                $eventoId = $request->header('X-Evento-Id') ?? $request->query('evento_id') ?? session('evento_id');
+
                 if ($eventoId && $eventoId !== 'null' && $eventoId !== 'undefined') {
-                    $builder->where($builder->getQuery()->from . '.evento_id', $eventoId);
+                    $builder->where($builder->getModel()->getTable() . '.evento_id', $eventoId);
                 } else {
-                    // Força retorno vazio se não houver contexto de evento
+                    // Force empty result if no event context and not in event-specific index
+                    // But wait: if we are listed ALL events, we don't apply this trait to the Event model itself
+                    // The trait is only applied to children models.
                     $builder->whereRaw('1 = 0');
                 }
             } catch (\Throwable $e) {
-                // Ignore in CLI or during boot
+                // Ignore
             }
         });
     }

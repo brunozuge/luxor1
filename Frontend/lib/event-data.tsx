@@ -211,6 +211,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
 
   const setSelectedEventId = useCallback((id: string | null) => {
     if (String(id) === String(selectedEventIdRef.current)) return
+    selectedEventIdRef.current = id
     setSelectedEventIdState(id)
     setIsInitialLoad(true)
     setFetchedModules(new Set())
@@ -239,7 +240,10 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMounted(true)
     const saved = localStorage.getItem("selected_evento_id")
-    if (saved) setSelectedEventIdState(saved)
+    if (saved) {
+      selectedEventIdRef.current = saved
+      setSelectedEventIdState(saved)
+    }
   }, [])
 
   const currentEvento = data.eventos.find(e => String(e.id) === String(selectedEventId)) || null
@@ -352,12 +356,6 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      refreshEventos()
-    }
-  }, [isAuthenticated, refreshEventos])
-
   const fetchData = useCallback(async (isSilent = false, modules?: (keyof EventData)[]) => {
     if (!isAuthenticated || !tokenRef.current || !selectedEventIdRef.current) {
       if (!selectedEventIdRef.current) setLoading(false)
@@ -393,7 +391,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       await Promise.all(
         modulesToFetch.map(async (m) => {
           try {
-            const res = await fetch(m.url, { headers })
+            const urlWithParam = `${m.url}${m.url.includes("?") ? "&" : "?"}evento_id=${currentEventId}`
+            const res = await fetch(urlWithParam, { headers })
             if (selectedEventIdRef.current !== currentEventId) return
 
             const json = res.ok ? await res.json() : []
@@ -473,9 +472,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     } finally {
       if (selectedEventIdRef.current === currentEventId) setLoading(false)
     }
-  }, []) // No dependencies on data or selectedEventId — use refs instead
-
-
+  }, [isAuthenticated, setSelectedEventId])
 
   useEffect(() => {
     if (isAuthenticated) {
