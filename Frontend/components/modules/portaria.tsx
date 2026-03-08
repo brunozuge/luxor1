@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { DoorOpen, AlertTriangle, UserCheck, Search, ShieldAlert } from "lucide-react"
+import { DoorOpen, AlertTriangle, UserCheck, Search, ShieldAlert, Plus } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const wristbandLabels: Record<WristbandColor, string> = {
@@ -36,7 +36,7 @@ function calcAge(dataNascimento: string) {
 }
 
 export function PortariaModule() {
-  const { tickets, pessoas, pessoasDentro, lotacaoMaxima, marcarEntrada, fetchedModules } = useEventData()
+  const { tickets, pessoas, pessoasDentro, lotacaoMaxima, marcarEntrada, fetchedModules, selectedEventId } = useEventData()
   const isLoading = !fetchedModules.has("tickets")
   const [searchTicket, setSearchTicket] = useState("")
   const [selectedWristband, setSelectedWristband] = useState<WristbandColor>("maior")
@@ -76,6 +76,16 @@ export function PortariaModule() {
           Controle de entrada no evento
         </p>
       </div>
+
+      {!selectedEventId && (
+        <Alert className="border-warning bg-warning/10">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
+          <AlertDescription className="text-warning/80">
+            Selecione um evento na barra lateral para gerenciar a portaria.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {isAtCapacity && (
         <Alert className="border-destructive bg-destructive/10">
@@ -229,10 +239,12 @@ export function PortariaModule() {
 
           <Button
             onClick={handleEntry}
-            className="h-14 text-lg font-semibold"
+            className="h-14 text-lg font-semibold bg-red-600 hover:bg-red-700 text-white"
             size="lg"
+            disabled={!selectedEventId}
+            title={!selectedEventId ? "Selecione um evento primeiro" : ""}
           >
-            <DoorOpen className="mr-2 h-5 w-5" />
+            <Plus className="mr-2 h-5 w-5" />
             Marcar Entrada
           </Button>
         </CardContent>

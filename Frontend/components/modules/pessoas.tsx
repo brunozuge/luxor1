@@ -8,6 +8,8 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertTriangle } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -32,7 +34,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Search, Trash2, Pencil, Users } from "lucide-react"
+import { Plus, Search, Trash2, Pencil, Users, Wine, TrendingUp, DollarSign, ShoppingCart, Trophy, X } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -95,7 +97,7 @@ function formatCPF(v: string) {
 }
 
 export function PessoasModule() {
-  const { pessoas, addPessoa, updatePessoa, removePessoa, fetchedModules } = useEventData()
+  const { pessoas, addPessoa, updatePessoa, removePessoa, fetchedModules, selectedEventId } = useEventData()
   const isLoading = !fetchedModules.has("pessoas")
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -237,22 +239,43 @@ export function PessoasModule() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold text-foreground">Cadastro de Pessoas</h1>
-          <p className="text-sm text-muted-foreground">
-            {pessoas.length} pessoas cadastradas
-          </p>
+          <h1 className="text-2xl font-bold text-foreground">Pessoas</h1>
+          <p className="text-sm text-muted-foreground">Gerencie o cadastro de clientes</p>
         </div>
+
+        {!selectedEventId && (
+          <Alert className="border-warning bg-warning/10">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
+            <AlertDescription className="text-warning/80">
+              Selecione um evento na barra lateral para gerenciar pessoas.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex flex-col gap-2 sm:flex-row">
           <Dialog open={dialogOpen} onOpenChange={(v) => {
+            if (v && !selectedEventId) {
+              toast.error("Selecione um evento primeiro")
+              return
+            }
             setDialogOpen(v)
             if (!v) {
               setEditingId(null)
               setErrors({})
               setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "" })
+            } else { // If opening the dialog and not editing, reset form for new entry
+              if (!editingId) {
+                setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "" })
+              }
             }
           }}>
             <DialogTrigger asChild>
-              <Button onClick={openNewDialog} className="w-full sm:w-auto">
+              <Button
+                className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
+                disabled={!selectedEventId}
+                title={!selectedEventId ? "Selecione um evento primeiro" : ""}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Nova Pessoa
               </Button>

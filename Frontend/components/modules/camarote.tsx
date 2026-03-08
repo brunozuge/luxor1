@@ -26,6 +26,8 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Crown, Wine, UserPlus, X, Trophy, Pencil, DollarSign } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertTriangle } from "lucide-react"
 
 export function CamaroteModule() {
   const {
@@ -41,6 +43,7 @@ export function CamaroteModule() {
     colaboradores,
     products,
     fetchedModules,
+    selectedEventId
   } = useEventData()
 
   const isLoading = !fetchedModules.has("camaroteTables")
@@ -147,8 +150,23 @@ export function CamaroteModule() {
             Gestão exclusiva de mesas e consumo
           </p>
         </div>
+
+        {!selectedEventId && (
+          <Alert className="border-warning bg-warning/10">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
+            <AlertDescription className="text-warning/80">
+              Selecione um evento na barra lateral para gerenciar mesas e camarotes.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex flex-col gap-2 sm:flex-row">
           <Dialog open={tableDialogOpen} onOpenChange={(v) => {
+            if (v && !selectedEventId) {
+              toast.error("Selecione um evento primeiro")
+              return
+            }
             setTableDialogOpen(v)
             if (!v) {
               setEditingTableId(null)
@@ -157,12 +175,8 @@ export function CamaroteModule() {
             }
           }}>
             <DialogTrigger asChild>
-              <Button onClick={() => {
-                setEditingTableId(null)
-                setTableForm({ nome: "", garcom: "", cor_pulseira: "" })
-              }} className="w-full sm:w-auto">
-                <Plus className="mr-2 h-4 w-4" />
-                Nova Mesa
+              <Button disabled={!selectedEventId} title={!selectedEventId ? "Selecione um evento primeiro" : ""} className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white">
+                <Plus className="mr-2 h-4 w-4" /> Criar Nova Mesa
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-[95vw] sm:max-w-md bg-card text-card-foreground p-0 overflow-hidden flex flex-col max-h-[90vh]">

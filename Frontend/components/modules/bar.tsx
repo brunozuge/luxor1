@@ -31,13 +31,14 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Wine, TrendingUp, DollarSign, ShoppingCart, Trophy, Trash2, X, Pencil } from "lucide-react"
+import { Plus, Wine, TrendingUp, DollarSign, ShoppingCart, Trophy, Trash2, X, Pencil, AlertTriangle } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { BarRanking } from "./bar-ranking"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function BarModule() {
-  const { products, barSales, pessoas, colaboradores, addProducts, addBarSale, addBarSales, removeProduct, updateProduct, removeBarSale, updateBarSale, fetchedModules } = useEventData()
+  const { products, barSales, pessoas, colaboradores, addProducts, addBarSale, addBarSales, removeProduct, updateProduct, removeBarSale, updateBarSale, fetchedModules, selectedEventId } = useEventData()
   const isLoading = !fetchedModules.has("products") || !fetchedModules.has("barSales")
   const [productDialogOpen, setProductDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<any | null>(null)
@@ -210,13 +211,30 @@ export function BarModule() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold text-foreground">Sistema de Bar</h1>
+          <h1 className="text-2xl font-bold text-foreground">Bar</h1>
           <p className="text-sm text-muted-foreground">Vendas, estoque e relatórios</p>
         </div>
+
+        {!selectedEventId && (
+          <Alert className="border-warning bg-warning/10">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
+            <AlertDescription className="text-warning/80">
+              Selecione um evento na barra lateral para gerenciar o bar e produtos.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
+          <Dialog open={productDialogOpen} onOpenChange={(v) => {
+            if (v && !selectedEventId) {
+              toast.error("Selecione um evento primeiro")
+              return
+            }
+            setProductDialogOpen(v)
+          }}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" />Produtos</Button>
+              <Button className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white" disabled={!selectedEventId} title={!selectedEventId ? "Selecione um evento primeiro" : ""}><Plus className="mr-2 h-4 w-4" />Registrar Produto</Button>
             </DialogTrigger>
             <DialogContent className="max-w-[95vw] sm:max-w-xl bg-card text-card-foreground p-0 overflow-hidden flex flex-col max-h-[90vh]">
               <DialogHeader className="p-6 pb-2">
@@ -263,9 +281,21 @@ export function BarModule() {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={saleDialogOpen} onOpenChange={setSaleDialogOpen}>
+          <Dialog open={saleDialogOpen} onOpenChange={(v) => {
+            if (v && !selectedEventId) {
+              toast.error("Selecione um evento primeiro")
+              return
+            }
+            setSaleDialogOpen(v)
+            if (!v) {
+              setErrors({})
+              setSaleForm({ productId: "", pessoaId: "", vendedor: "", quantidade: 1 })
+            }
+          }}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto"><ShoppingCart className="mr-2 h-4 w-4" />Nova Venda</Button>
+              <Button disabled={!selectedEventId} title={!selectedEventId ? "Selecione um evento primeiro" : ""} className="w-full sm:w-auto">
+                <ShoppingCart className="mr-2 h-4 w-4" /> Nova Venda
+              </Button>
             </DialogTrigger>
             <DialogContent className="max-w-[95vw] sm:max-w-md bg-card text-card-foreground p-0 overflow-hidden flex flex-col max-h-[90vh]">
               <DialogHeader className="p-6 pb-2">

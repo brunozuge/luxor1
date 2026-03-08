@@ -13,6 +13,7 @@ import {
   AlertTriangle,
 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export function DashboardModule() {
   const {
@@ -24,7 +25,8 @@ export function DashboardModule() {
     pessoasDentro,
     lotacaoMaxima,
     fetchedModules,
-    refreshEventos
+    refreshEventos,
+    selectedEventId
   } = useEventData()
 
   const isLoading = !fetchedModules.has("pessoas") || !fetchedModules.has("tickets") || !fetchedModules.has("products") || !fetchedModules.has("barSales")
@@ -159,6 +161,16 @@ export function DashboardModule() {
           Visao geral do evento em tempo real
         </p>
       </div>
+
+      {!selectedEventId && (
+        <Alert className="border-warning bg-warning/10">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
+          <AlertDescription className="text-warning/80">
+            Você precisa selecionar um evento na barra lateral ou criar um novo em "Minhas Festas" para ver estatísticas e gerenciar dados.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Main Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

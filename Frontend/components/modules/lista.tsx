@@ -22,11 +22,12 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Trash2, ListTodo, Search, X, Pencil, FileText } from "lucide-react"
+import { Plus, Trash2, ListTodo, Search, X, Pencil, FileText, AlertTriangle } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 
 export function ListaModule() {
-    const { listas, addListaItem, updateListaItem, removeListaItem } = useEventData()
+    const { listas, addListaItem, updateListaItem, removeListaItem, selectedEventId } = useEventData()
     const [searchTerm, setSearchTerm] = useState("")
     const [dialogOpen, setDialogOpen] = useState(false)
     const [editingItem, setEditingItem] = useState<ListaItem | null>(null)
@@ -43,6 +44,10 @@ export function ListaModule() {
     )
 
     function handleOpenCreate() {
+        if (!selectedEventId) {
+            toast.error("Selecione um evento primeiro")
+            return
+        }
         setEditingItem(null)
         setFormData({ nome: "", descricao: "" })
         setDialogOpen(true)
@@ -77,11 +82,21 @@ export function ListaModule() {
                     <p className="text-sm text-muted-foreground">Gerencie grupos e listas nominais</p>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button onClick={handleOpenCreate} className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white">
+                    <Button onClick={handleOpenCreate} className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white" disabled={!selectedEventId} title={!selectedEventId ? "Selecione um evento primeiro" : ""}>
                         <Plus className="mr-2 h-4 w-4" /> Criar Nova Lista
                     </Button>
                 </div>
             </div>
+
+            {!selectedEventId && (
+                <Alert className="border-warning bg-warning/10">
+                    <AlertTriangle className="h-4 w-4 text-warning" />
+                    <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
+                    <AlertDescription className="text-warning/80">
+                        Selecione um evento na barra lateral para gerenciar as listas de nomes.
+                    </AlertDescription>
+                </Alert>
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <Card>

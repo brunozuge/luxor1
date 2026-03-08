@@ -34,6 +34,8 @@ import { Plus, Search, UserCog, Trash2, Pencil, Phone } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertTriangle } from "lucide-react"
 
 const cargoLabels: Record<CargoColaborador, string> = {
   barman: "Barman",
@@ -63,6 +65,7 @@ export function ColaboradoresModule() {
     updateColaborador,
     removeColaborador,
     fetchedModules,
+    selectedEventId
   } = useEventData()
 
   const isLoading = !fetchedModules.has("colaboradores")
@@ -163,23 +166,40 @@ export function ColaboradoresModule() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold text-foreground">Colaboradores</h1>
-          <p className="text-sm text-muted-foreground">
-            Gerencie sua equipe de trabalho
-          </p>
+          <p className="text-sm text-muted-foreground">Gestão de equipe e permissões</p>
         </div>
+
+        {!selectedEventId && (
+          <Alert className="border-warning bg-warning/10">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
+            <AlertDescription className="text-warning/80">
+              Selecione um evento na barra lateral para gerenciar colaboradores.
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="flex flex-col gap-2 sm:flex-row">
           <Dialog open={dialogOpen} onOpenChange={(v) => {
+            if (v && !selectedEventId) {
+              toast.error("Selecione um evento primeiro")
+              return
+            }
             setDialogOpen(v)
             if (!v) {
               setEditingId(null)
               setErrors({})
-              setForm({ nome: "", cargo: "outro", telefone: "", ativo: true })
+              setForm({ nome: "", cargo: "barman", telefone: "", ativo: true })
             }
           }}>
             <DialogTrigger asChild>
-              <Button onClick={openNewDialog} className="w-full sm:w-auto">
+              <Button
+                onClick={openNewDialog}
+                disabled={!selectedEventId}
+                title={!selectedEventId ? "Selecione um evento primeiro" : ""}
+                className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
+              >
                 <Plus className="mr-2 h-4 w-4" />
-                Novo Colaborador
+                Adicionar Colaborador
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-[95vw] sm:max-w-md bg-card text-card-foreground p-0 overflow-hidden flex flex-col max-h-[90vh]">

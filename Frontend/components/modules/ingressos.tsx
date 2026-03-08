@@ -8,6 +8,8 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertTriangle } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -57,7 +59,7 @@ const paymentLabels: Record<PaymentMethod, string> = {
 }
 
 export function IngressosModule() {
-  const { tickets, pessoas, addTicket, colaboradores, fetchedModules } = useEventData()
+  const { tickets, pessoas, addTicket, colaboradores, fetchedModules, selectedEventId } = useEventData()
   const isLoading = !fetchedModules.has("tickets")
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -113,13 +115,26 @@ export function IngressosModule() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold text-foreground">Controle de Ingressos</h1>
-          <p className="text-sm text-muted-foreground">
-            {tickets.length} ingressos registrados
-          </p>
+          <h1 className="text-2xl font-bold text-foreground">Venda de Ingressos</h1>
+          <p className="text-sm text-muted-foreground">Emita novos ingressos para seu evento</p>
         </div>
+
+        {!selectedEventId && (
+          <Alert className="border-warning bg-warning/10">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
+            <AlertDescription className="text-warning/80">
+              Selecione um evento na barra lateral para vender ingressos.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex flex-col gap-2 sm:flex-row">
           <Dialog open={dialogOpen} onOpenChange={(v) => {
+            if (v && !selectedEventId) {
+              toast.error("Selecione um evento primeiro")
+              return
+            }
             setDialogOpen(v)
             if (!v) {
               setErrors({})
@@ -127,9 +142,8 @@ export function IngressosModule() {
             }
           }}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto">
-                <Plus className="mr-2 h-4 w-4" />
-                Novo Ingresso
+              <Button className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white" disabled={!selectedEventId} title={!selectedEventId ? "Selecione um evento primeiro" : ""}>
+                <Plus className="mr-2 h-4 w-4" /> Cadastrar Ingresso
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-[95vw] sm:max-w-md bg-card text-card-foreground p-0 overflow-hidden flex flex-col max-h-[90vh]">

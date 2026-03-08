@@ -33,12 +33,38 @@ const sectionTitles: Record<string, string> = {
 }
 
 function DataFetcher({ activeSection }: { activeSection: string }) {
-  const { fetchData, fetchedModules, selectedEventId } = useEventData()
+  const { fetchData, fetchedModules, selectedEventId, setFetchedModules } = useEventData()
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Only trigger on section change or event change
   useEffect(() => {
+    if (!selectedEventId) {
+      const sectionModules: Record<string, any[]> = {
+        dashboard: ["pessoas", "tickets", "products", "barSales", "colaboradores", "camaroteTables", "listas"],
+        pessoas: ["pessoas"],
+        lista: ["listas"],
+        ingressos: ["tickets", "pessoas", "colaboradores"],
+        portaria: ["tickets", "pessoas"],
+        bar: ["barSales", "products", "colaboradores"],
+        camarote: ["camaroteTables", "pessoas"],
+        colaboradores: ["colaboradores"],
+      }
+
+      const modules = sectionModules[activeSection] || []
+      const missing = modules.filter(m => !fetchedModules.has(m))
+
+      if (missing.length > 0) {
+        // Marcamos os módulos da aba atual como "buscados" para evitar o loader infinito
+        // sem dados reais, pois não há evento selecionado.
+        setFetchedModules((prev: Set<keyof EventData>) => {
+          const next = new Set(prev)
+          for (const m of missing) next.add(m)
+          return next
+        })
+      }
+      return
+    }
+
     const sectionModules: Record<string, any[]> = {
-      dashboard: ["pessoas", "tickets", "products", "barSales", "colaboradores", "camaroteTables"],
+      dashboard: ["pessoas", "tickets", "products", "barSales", "colaboradores", "camaroteTables", "listas"],
       pessoas: ["pessoas"],
       lista: ["listas"],
       ingressos: ["tickets", "pessoas", "colaboradores"],
@@ -49,11 +75,10 @@ function DataFetcher({ activeSection }: { activeSection: string }) {
     }
 
     const modules = sectionModules[activeSection] || []
-    // @ts-ignore
     const needsLoading = modules.some(m => !fetchedModules.has(m))
 
     fetchData(!needsLoading, modules as any)
-  }, [activeSection, fetchData, selectedEventId])
+  }, [activeSection, fetchData, selectedEventId, fetchedModules, setFetchedModules])
 
   return null
 }
