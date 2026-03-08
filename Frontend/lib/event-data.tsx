@@ -366,6 +366,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const inFlightRef = useRef<Set<keyof EventData>>(new Set())
+
   const fetchData = useCallback(async (isSilent = false, modules?: (keyof EventData)[]) => {
     if (!isAuthenticated || !tokenRef.current || !selectedEventIdRef.current) {
       if (!selectedEventIdRef.current) {
@@ -377,30 +379,35 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     const currentToken = tokenRef.current
     const currentEventId = selectedEventIdRef.current
 
+    const allModulesConfig = [
+      { key: "pessoas" as keyof EventData, url: `${API_URL}/pessoas` },
+      { key: "tickets" as keyof EventData, url: `${API_URL}/ingressos` },
+      { key: "products" as keyof EventData, url: `${API_URL}/produtos` },
+      { key: "barSales" as keyof EventData, url: `${API_URL}/vendas-bar` },
+      { key: "colaboradores" as keyof EventData, url: `${API_URL}/colaboradores` },
+      { key: "camaroteTables" as keyof EventData, url: `${API_URL}/mesas-camarote` },
+      { key: "listas" as keyof EventData, url: `${API_URL}/listas` },
+    ]
+
+    const targetKeys = modules || allModulesConfig.map(m => m.key)
+    const modulesToFetch = allModulesConfig.filter(m =>
+      targetKeys.includes(m.key) && !inFlightRef.current.has(m.key)
+    )
+
+    if (modulesToFetch.length === 0) return
+
     if (!isSilent) setLoading(true)
 
+    // Mark as in-flight
+    modulesToFetch.forEach(m => inFlightRef.current.add(m.key))
+
     try {
-      const allModulesConfig = [
-        { key: "pessoas" as keyof EventData, url: `${API_URL}/pessoas` },
-        { key: "tickets" as keyof EventData, url: `${API_URL}/ingressos` },
-        { key: "products" as keyof EventData, url: `${API_URL}/produtos` },
-        { key: "barSales" as keyof EventData, url: `${API_URL}/vendas-bar` },
-        { key: "colaboradores" as keyof EventData, url: `${API_URL}/colaboradores` },
-        { key: "camaroteTables" as keyof EventData, url: `${API_URL}/mesas-camarote` },
-        { key: "listas" as keyof EventData, url: `${API_URL}/listas` },
-      ]
-
-      const modulesToFetch = modules
-        ? allModulesConfig.filter(m => modules.includes(m.key))
-        : allModulesConfig
-
       const headers = {
         Authorization: `Bearer ${currentToken}`,
         Accept: "application/json",
         "X-Evento-Id": String(currentEventId)
       }
 
-      // Fetch each module and update independently
       await Promise.all(
         modulesToFetch.map(async (m) => {
           try {
@@ -447,7 +454,6 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
               transformed = json.map((l: any) => ({ id: String(l.id), nome: l.nome, descricao: l.descricao || "" }))
             }
 
-            // Update specific module data
             setData(prev => {
               if (selectedEventIdRef.current !== currentEventId) return prev
               const currentItems = (prev[key] as any[]) || []
@@ -458,7 +464,6 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
               }
             })
 
-            // Mark as fetched
             setFetchedModules(prev => {
               const next = new Set(prev)
               next.add(key)
@@ -467,12 +472,13 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
 
           } catch (e) {
             console.error(`Error fetching module ${m.key}:`, e)
-            // Even on error, mark as fetched to avoid infinite skeletons
             setFetchedModules(prev => {
               const next = new Set(prev)
               next.add(m.key)
               return next
             })
+          } finally {
+            inFlightRef.current.delete(m.key)
           }
         })
       )
@@ -483,7 +489,9 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error("Error in fetchData overall:", error)
     } finally {
-      if (selectedEventIdRef.current === currentEventId) setLoading(false)
+      if (selectedEventIdRef.current === currentEventId && inFlightRef.current.size === 0) {
+        setLoading(false)
+      }
     }
   }, [isAuthenticated, setSelectedEventId])
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { EventDataProvider, useEventData } from "@/lib/event-data"
+import { EventDataProvider, useEventData, type EventData } from "@/lib/event-data"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -37,7 +37,7 @@ function DataFetcher({ activeSection }: { activeSection: string }) {
 
   useEffect(() => {
     if (!selectedEventId) {
-      const sectionModules: Record<string, any[]> = {
+      const sectionModules: Record<string, (keyof EventData)[]> = {
         dashboard: ["pessoas", "tickets", "products", "barSales", "colaboradores", "camaroteTables", "listas"],
         pessoas: ["pessoas"],
         lista: ["listas"],
@@ -52,9 +52,7 @@ function DataFetcher({ activeSection }: { activeSection: string }) {
       const missing = modules.filter(m => !fetchedModules.has(m))
 
       if (missing.length > 0) {
-        // Marcamos os módulos da aba atual como "buscados" para evitar o loader infinito
-        // sem dados reais, pois não há evento selecionado.
-        setFetchedModules((prev: Set<keyof EventData>) => {
+        setFetchedModules(prev => {
           const next = new Set(prev)
           for (const m of missing) next.add(m)
           return next
@@ -63,7 +61,7 @@ function DataFetcher({ activeSection }: { activeSection: string }) {
       return
     }
 
-    const sectionModules: Record<string, any[]> = {
+    const sectionModules: Record<string, (keyof EventData)[]> = {
       dashboard: ["pessoas", "tickets", "products", "barSales", "colaboradores", "camaroteTables", "listas"],
       pessoas: ["pessoas"],
       lista: ["listas"],
@@ -75,10 +73,15 @@ function DataFetcher({ activeSection }: { activeSection: string }) {
     }
 
     const modules = sectionModules[activeSection] || []
-    const needsLoading = modules.some(m => !fetchedModules.has(m))
 
-    fetchData(!needsLoading, modules as any)
-  }, [activeSection, fetchData, selectedEventId, fetchedModules, setFetchedModules])
+    if (modules.length > 0) {
+      // Check if we already have these modules to decide if we show a loader or fetch quietly
+      const missing = modules.filter(m => !fetchedModules.has(m))
+      const isSilent = missing.length === 0
+
+      fetchData(isSilent, modules as any)
+    }
+  }, [activeSection, fetchData, selectedEventId, setFetchedModules])
 
   return null
 }
