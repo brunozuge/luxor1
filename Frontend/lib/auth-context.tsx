@@ -74,24 +74,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [])
 
     const logout = useCallback(async () => {
+        const currentToken = token;
+
+        // Limpeza instantânea do estado local para feedback imediato
+        setToken(null)
+        setUser(null)
+        localStorage.removeItem("eventpro_token")
+        localStorage.removeItem("eventpro_user")
+        toast.success("Você foi desconectado")
+
         try {
-            if (token) {
+            if (currentToken) {
                 await fetch(`${API_BASE_URL}/logout`, {
                     method: "POST",
                     headers: {
-                        "Authorization": `Bearer ${token}`,
+                        "Authorization": `Bearer ${currentToken}`,
                         "Accept": "application/json",
                     },
                 })
             }
         } catch (error) {
             console.error("Logout error:", error)
-        } finally {
-            setToken(null)
-            setUser(null)
-            localStorage.removeItem("eventpro_token")
-            localStorage.removeItem("eventpro_user")
-            toast.success("Você foi desconectado")
         }
     }, [token])
 

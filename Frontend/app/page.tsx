@@ -16,7 +16,6 @@ import { ColaboradoresModule } from "@/components/modules/colaboradores"
 import { ListaModule } from "@/components/modules/lista"
 import { Login } from "@/components/login"
 import { Loader2 } from "lucide-react"
-import { EventSwitcher } from "@/components/event-switcher"
 import { FullScreenOverlays } from "@/components/full-screen-overlays"
 
 const sectionTitles: Record<string, string> = {
@@ -75,10 +74,8 @@ function DataFetcher({ activeSection }: { activeSection: string }) {
     const modules = sectionModules[activeSection] || []
 
     if (modules.length > 0) {
-      // Check if we already have these modules to decide if we show a loader or fetch quietly
       const missing = modules.filter(m => !fetchedModules.has(m))
       const isSilent = missing.length === 0
-
       fetchData(isSilent, modules as any)
     }
   }, [activeSection, fetchData, selectedEventId, setFetchedModules])
@@ -86,15 +83,45 @@ function DataFetcher({ activeSection }: { activeSection: string }) {
   return null
 }
 
-function InnerContent({ activeSection, setActiveSection }: { activeSection: string, setActiveSection: (s: string) => void }) {
-  const { overlay, setOverlay } = useEventData()
+function InnerContent({
+  activeSection,
+  setActiveSection
+}: {
+  activeSection: string,
+  setActiveSection: (s: string) => void
+}) {
+  const { overlay, setOverlay, selectedEventId, mounted } = useEventData()
+  const [initialized, setInitialized] = useState(false)
 
-  // Sincroniza a seção ativa se o overlay mudar por fora (ex: EventSwitcher)
+  // Decisão inicial de rota
+  useEffect(() => {
+    if (mounted && !initialized) {
+      const savedId = localStorage.getItem("selected_evento_id")
+      if (savedId) {
+        setActiveSection("dashboard")
+        setOverlay("none")
+      } else {
+        setActiveSection("eventpro")
+        setOverlay("eventpro")
+      }
+      setInitialized(true)
+    }
+  }, [mounted, initialized, setActiveSection, setOverlay])
+
+  // Sincroniza a seção ativa se o overlay mudar por fora
   useEffect(() => {
     if (overlay !== "none" && overlay !== activeSection) {
       setActiveSection(overlay)
     }
-  }, [overlay, activeSection])
+  }, [overlay, activeSection, setActiveSection])
+
+  if (!initialized) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#0d0d0d]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <SidebarProvider>
@@ -123,7 +150,6 @@ function InnerContent({ activeSection, setActiveSection }: { activeSection: stri
 }
 
 function AppContent() {
-  const [activeSection, setActiveSection] = useState("eventpro")
   const { isAuthenticated, loading } = useAuth()
 
   if (loading) {
@@ -134,15 +160,18 @@ function AppContent() {
     )
   }
 
-  if (!isAuthenticated) {
-    return <Login />
-  }
+  if (!isAuthenticated) return <Login />
 
   return (
     <EventDataProvider>
-      <InnerContent activeSection={activeSection} setActiveSection={setActiveSection} />
+      <InnerContentWrapper />
     </EventDataProvider>
   )
+}
+
+function InnerContentWrapper() {
+  const [activeSection, setActiveSection] = useState("dashboard")
+  return <InnerContent activeSection={activeSection} setActiveSection={setActiveSection} />
 }
 
 export default function Page() {

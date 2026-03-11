@@ -83,8 +83,23 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
     setOpenMobile(false)
   }
 
+  const handleExitParty = () => {
+    setSelectedEventId(null)
+    setOverlay("festas")
+    onNavigate("festas")
+  }
+
   const percentage = Math.round((pessoasDentro / lotacaoMaxima) * 100)
   const isNearCapacity = percentage >= 80
+
+  const filteredNavItems = navItems.filter(item => {
+    if (item.id === "festas" || item.id === "eventpro") {
+      // Só esconde se realmente tiver um evento selecionado e válido
+      const hasActualEvent = selectedEventId && selectedEventId !== "null" && selectedEventId !== "undefined"
+      return !hasActualEvent
+    }
+    return true
+  })
 
   if (isInitialLoad && eventos.length === 0) {
     return (
@@ -122,6 +137,8 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
     )
   }
 
+  const hasEventSelected = selectedEventId && selectedEventId !== "null" && selectedEventId !== "undefined";
+
   return (
     <Sidebar>
       <SidebarHeader className="px-4 py-4">
@@ -141,6 +158,24 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg p-2 space-y-1" align="start" side="bottom" sideOffset={4}>
+            {hasEventSelected && (
+              <>
+                <DropdownMenuItem
+                  className="flex items-center gap-3 p-3 cursor-pointer rounded-lg hover:bg-destructive/10 focus:bg-destructive/10"
+                  onClick={handleExitParty}
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+                    <LogOut className="size-4" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-bold text-sm text-destructive">Sair da Produção</span>
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Limpar Seleção</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
+
             <DropdownMenuItem
               className="flex items-center gap-3 p-3 cursor-pointer rounded-lg hover:bg-red-50 focus:bg-red-50"
               onClick={() => {
@@ -187,7 +222,7 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
           <SidebarGroupLabel>Modulos</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {filteredNavItems.map((item) => (
                 <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton
                     isActive={activeSection === item.id}
@@ -260,7 +295,10 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
       <ConfirmDialog
         open={showLogoutConfirm}
         onOpenChange={setShowLogoutConfirm}
-        onConfirm={logout}
+        onConfirm={async () => {
+          setShowLogoutConfirm(false)
+          await logout()
+        }}
         title="Sair do Sistema"
         description="Deseja realmente sair do sistema?"
         confirmText="Sair"

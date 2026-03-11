@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronDown, Crown, Plus } from "lucide-react"
+import { ChevronDown, Crown, Plus, LogOut, Calendar } from "lucide-react"
 import { useEventData } from "@/lib/event-data"
 import {
     DropdownMenu,
@@ -15,7 +15,7 @@ import { CreateEventModal } from "./create-event-modal"
 import { Skeleton } from "./ui/skeleton"
 
 export function EventSwitcher({ className }: { className?: string }) {
-    const { currentEvento, setOverlay, mounted, overlay } = useEventData()
+    const { currentEvento, setOverlay, mounted, overlay, selectedEventId, setSelectedEventId } = useEventData()
 
     if (!mounted) {
         return (
@@ -49,6 +49,26 @@ export function EventSwitcher({ className }: { className?: string }) {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-56 p-2 space-y-1">
+                    {selectedEventId && (
+                        <>
+                            <DropdownMenuItem
+                                className="flex items-center gap-3 p-3 cursor-pointer rounded-lg hover:bg-destructive/10 focus:bg-destructive/10"
+                                onClick={() => {
+                                    setSelectedEventId(null)
+                                    setOverlay("festas")
+                                }}
+                            >
+                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+                                    <LogOut className="size-4" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-sm text-destructive">Sair da Produção</span>
+                                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Limpar Seleção</span>
+                                </div>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                        </>
+                    )}
                     <DropdownMenuItem
                         className="flex items-center gap-3 p-3 cursor-pointer rounded-lg hover:bg-red-50 focus:bg-red-50"
                         onClick={() => setOverlay("festas")}
@@ -80,4 +100,3 @@ export function EventSwitcher({ className }: { className?: string }) {
     )
 }
 
-import { Calendar } from "lucide-react"

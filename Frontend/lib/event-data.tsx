@@ -242,14 +242,17 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const [overlay, setOverlay] = useState<"none" | "festas" | "eventpro">("eventpro")
+  const [overlay, setOverlay] = useState<"none" | "festas" | "eventpro">("none")
 
   useEffect(() => {
     setMounted(true)
     const saved = localStorage.getItem("selected_evento_id")
-    if (saved) {
+    if (saved && saved !== "null" && saved !== "undefined") {
       selectedEventIdRef.current = saved
       setSelectedEventIdState(saved)
+    } else {
+      selectedEventIdRef.current = null
+      setSelectedEventIdState(null)
     }
   }, [])
 
@@ -296,9 +299,11 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
 
       if (eventos.length > 0) {
         const currentId = selectedEventIdRef.current
-        const isValid = eventos.some((e: any) => String(e.id) === String(currentId))
-        if (!currentId || !isValid) {
-          setSelectedEventId(String(eventos[0].id))
+        if (currentId) {
+          const isValid = eventos.some((e: any) => String(e.id) === String(currentId))
+          if (!isValid) {
+            setSelectedEventId(String(eventos[0].id))
+          }
         }
       } else {
         setSelectedEventId(null)

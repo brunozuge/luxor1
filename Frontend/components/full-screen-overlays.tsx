@@ -18,7 +18,8 @@ import {
     Calendar,
     AlertTriangle,
     Ticket,
-    Wine
+    Wine,
+    LogOut
 } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { EventFormModal } from "@/components/event-form-modal"
@@ -153,7 +154,7 @@ const EventCard = React.memo(({
 })
 
 export function FullScreenOverlays({ onNavigate }: { onNavigate?: (section: string) => void }) {
-    const { overlay, setOverlay, eventos, setSelectedEventId, removeEvento, isGlobalLoading } = useEventData()
+    const { overlay, setOverlay, eventos, setSelectedEventId, removeEvento, isGlobalLoading, selectedEventId } = useEventData()
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null)
     const [eventToEdit, setEventToEdit] = useState<Evento | null>(null)
     const [eventToDelete, setEventToDelete] = useState<string | null>(null)
@@ -209,13 +210,25 @@ export function FullScreenOverlays({ onNavigate }: { onNavigate?: (section: stri
                         {overlay === "festas" ? "Minhas Festas" : "Eventos - Geral"}
                     </h2>
                     {overlay === "festas" && (
-                        <Button
-                            onClick={() => setEventToEdit({ id: "", nome: "", cor_primaria: "#3b82f6", cor_secundaria: "#3b82f6", logo: null })}
-                            className="bg-red-600 hover:bg-red-700 text-white"
-                            size="sm"
-                        >
-                            <Plus className="h-4 w-4 mr-2" /> Novo Evento
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                onClick={() => setEventToEdit({ id: "", nome: "", cor_primaria: "#3b82f6", cor_secundaria: "#3b82f6", logo: null })}
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                                size="sm"
+                            >
+                                <Plus className="h-4 w-4 mr-2" /> Novo Evento
+                            </Button>
+                            {selectedEventId && (
+                                <Button
+                                    onClick={() => setSelectedEventId(null)}
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-red-600/20 text-red-600 hover:bg-red-600/10"
+                                >
+                                    <LogOut className="h-4 w-4 mr-2" /> Sair da Festa
+                                </Button>
+                            )}
+                        </div>
                     )}
                 </div>
                 <div className="flex items-center gap-3">
