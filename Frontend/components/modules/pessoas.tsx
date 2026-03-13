@@ -103,6 +103,7 @@ export function PessoasModule() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [showEditConfirm, setShowEditConfirm] = useState(false)
   const [form, setForm] = useState({
     nome: "",
     instagram: "",
@@ -184,28 +185,34 @@ export function PessoasModule() {
       return
     }
 
-    // 4. Se passou em tudo, prossegue com a requisição
+    // 4. Se passou em tudo, prossegue
+    if (isEditing) {
+      setShowEditConfirm(true)
+    } else {
+      await performSave()
+    }
+  }
+
+  async function performSave() {
     try {
       let success = false
-      if (isEditing) {
-        // updatePessoa em lib/event-data.tsx deve retornar algo ou disparar erro
-        const res = await updatePessoa(editingId, form)
-        success = true // Se nao der erro, consideramos sucesso
+      if (editingId) {
+        await updatePessoa(editingId, form)
+        success = true
       } else {
         const resId = await addPessoa(form)
         if (resId) success = true
       }
 
       if (success) {
-        // SÓ LIMPA E FECHA SE DER CERTO
         setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "" })
         setEditingId(null)
         setErrors({})
         setDialogOpen(false)
+        setShowEditConfirm(false)
       }
     } catch (err) {
       console.error("Erro ao salvar:", err)
-      // O toast.promise ja mostra o erro, entao nao fazemos nada aqui para manter a modal aberta
     }
   }
 
@@ -534,6 +541,14 @@ export function PessoasModule() {
         onConfirm={handleDeletePessoa}
         title="Excluir Pessoa"
         description="Tem certeza que deseja remover esta pessoa? Isso tambem pode afetar ingressos e vendas associadas."
+      />
+
+      <ConfirmDialog
+        open={showEditConfirm}
+        onOpenChange={setShowEditConfirm}
+        onConfirm={performSave}
+        title="Confirmar Edição"
+        description="Tem certeza que deseja salvar as alterações no cadastro desta pessoa?"
       />
     </div>
   )

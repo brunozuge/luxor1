@@ -74,6 +74,7 @@ export function ColaboradoresModule() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [showEditConfirm, setShowEditConfirm] = useState(false)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
   const [form, setForm] = useState({
     nome: "",
@@ -115,7 +116,7 @@ export function ColaboradoresModule() {
     setDialogOpen(true)
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
     const newErrors = {
@@ -139,13 +140,26 @@ export function ColaboradoresModule() {
       return
     }
     if (editingId) {
-      updateColaborador(editingId, form)
+      setShowEditConfirm(true)
     } else {
-      addColaborador(form)
+      await performSave()
     }
-    setForm({ nome: "", cargo: "barman", telefone: "", ativo: true })
-    setEditingId(null)
-    setDialogOpen(false)
+  }
+
+  async function performSave() {
+    try {
+      if (editingId) {
+        await updateColaborador(editingId, form)
+      } else {
+        await addColaborador(form)
+      }
+      setForm({ nome: "", cargo: "barman", telefone: "", ativo: true })
+      setEditingId(null)
+      setDialogOpen(false)
+      setShowEditConfirm(false)
+    } catch (err) {
+      console.error("Erro ao salvar:", err)
+    }
   }
 
   function handleToggleAtivo(id: string) {
@@ -466,6 +480,14 @@ export function ColaboradoresModule() {
         onConfirm={handleDeleteColaborador}
         title="Excluir Colaborador"
         description="Tem certeza que deseja remover este colaborador? Esta acao nao pode ser desfeita."
+      />
+
+      <ConfirmDialog
+        open={showEditConfirm}
+        onOpenChange={setShowEditConfirm}
+        onConfirm={performSave}
+        title="Confirmar Edição"
+        description="Tem certeza que deseja salvar as alterações nas informações deste colaborador?"
       />
     </div>
   )

@@ -46,6 +46,8 @@ export function BarModule() {
   const [editingSale, setEditingSale] = useState<any | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [confirmDeleteSaleId, setConfirmDeleteSaleId] = useState<string | null>(null)
+  const [showEditProductConfirm, setShowEditProductConfirm] = useState(false)
+  const [showEditSaleConfirm, setShowEditSaleConfirm] = useState(false)
   const [errors, setErrors] = useState<Record<string, any>>({})
 
   const [productRows, setProductRows] = useState([{
@@ -132,13 +134,7 @@ export function BarModule() {
     }
 
     if (editingProduct) {
-      updateProduct(editingProduct.id, {
-        nome: productRows[0].nome,
-        custo: parseCurrency(productRows[0].custo),
-        precoVenda: parseCurrency(productRows[0].precoVenda),
-        estoqueInicial: Number(productRows[0].estoqueInicial),
-        estoqueAtual: editingProduct.estoqueAtual + (Number(productRows[0].estoqueInicial) - editingProduct.estoqueInicial)
-      })
+      setShowEditProductConfirm(true)
     } else {
       addProducts(productRows.map(p => ({
         nome: p.nome,
@@ -146,9 +142,22 @@ export function BarModule() {
         precoVenda: parseCurrency(p.precoVenda),
         estoqueInicial: Number(p.estoqueInicial) || 0,
       })))
+      setProductRows([{ nome: "", custo: "", precoVenda: "", estoqueInicial: "" }])
+      setProductDialogOpen(false)
     }
-    setProductRows([{ nome: "", custo: "", precoVenda: "", estoqueInicial: "" }])
-    setProductDialogOpen(false)
+  }
+
+  function confirmUpdateProduct() {
+      updateProduct(editingProduct.id, {
+        nome: productRows[0].nome,
+        custo: parseCurrency(productRows[0].custo),
+        precoVenda: parseCurrency(productRows[0].precoVenda),
+        estoqueInicial: Number(productRows[0].estoqueInicial),
+        estoqueAtual: editingProduct.estoqueAtual + (Number(productRows[0].estoqueInicial) - editingProduct.estoqueInicial)
+      })
+      setProductRows([{ nome: "", custo: "", precoVenda: "", estoqueInicial: "" }])
+      setProductDialogOpen(false)
+      setShowEditProductConfirm(false)
   }
 
   function handleAddSale(e: React.FormEvent) {
@@ -173,20 +182,28 @@ export function BarModule() {
     }
 
     if (editingSale) {
-      updateBarSale(editingSale.id, {
-        vendedor: saleForm.vendedor,
-        quantidade: saleForm.quantidade,
-        pessoaId: saleForm.pessoaId
-      })
+      setShowEditSaleConfirm(true)
     } else {
       addBarSales(saleForm.vendedor, [{
         productId: saleForm.productId,
         quantidade: saleForm.quantidade
       }], saleForm.pessoaId)
+      setSaleForm({ productId: "", pessoaId: "", vendedor: "", quantidade: 1 })
+      setEditingSale(null)
+      setSaleDialogOpen(false)
     }
-    setSaleForm({ productId: "", pessoaId: "", vendedor: "", quantidade: 1 })
-    setEditingSale(null)
-    setSaleDialogOpen(false)
+  }
+
+  function confirmUpdateSale() {
+      updateBarSale(editingSale.id, {
+        vendedor: saleForm.vendedor,
+        quantidade: saleForm.quantidade,
+        pessoaId: saleForm.pessoaId
+      })
+      setSaleForm({ productId: "", pessoaId: "", vendedor: "", quantidade: 1 })
+      setEditingSale(null)
+      setSaleDialogOpen(false)
+      setShowEditSaleConfirm(false)
   }
 
   function openEditSale(sale: any) {
@@ -468,6 +485,8 @@ export function BarModule() {
       </Tabs>
       <ConfirmDialog open={confirmDeleteId !== null} onOpenChange={() => setConfirmDeleteId(null)} onConfirm={() => { removeProduct(confirmDeleteId!); setConfirmDeleteId(null) }} title="Excluir Produto" description="Tem certeza que deseja remover este produto? Isso pode afetar o historico de vendas." />
       <ConfirmDialog open={confirmDeleteSaleId !== null} onOpenChange={() => setConfirmDeleteSaleId(null)} onConfirm={handleDeleteSale} title="Excluir Venda" description="Tem certeza que deseja remover este registro de venda?" />
+      <ConfirmDialog open={showEditProductConfirm} onOpenChange={setShowEditProductConfirm} onConfirm={confirmUpdateProduct} title="Confirmar Edição" description="Tem certeza que deseja salvar as alterações neste produto?" />
+      <ConfirmDialog open={showEditSaleConfirm} onOpenChange={setShowEditSaleConfirm} onConfirm={confirmUpdateSale} title="Confirmar Edição" description="Tem certeza que deseja salvar as alterações nesta venda?" />
     </div>
   )
 }

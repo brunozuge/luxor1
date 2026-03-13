@@ -92,11 +92,15 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
   const percentage = Math.round((pessoasDentro / lotacaoMaxima) * 100)
   const isNearCapacity = percentage >= 80
 
+
+  const hasEventSelected = selectedEventId && selectedEventId !== "null" && selectedEventId !== "undefined";
+
   const filteredNavItems = navItems.filter(item => {
     if (item.id === "festas" || item.id === "eventpro") {
-      // Só esconde se realmente tiver um evento selecionado e válido
-      const hasActualEvent = selectedEventId && selectedEventId !== "null" && selectedEventId !== "undefined"
-      return !hasActualEvent
+      return !hasEventSelected
+    }
+    if (item.id === "dashboard") {
+      return hasEventSelected
     }
     return true
   })
@@ -136,8 +140,6 @@ export function AppSidebar({ activeSection, onNavigate }: AppSidebarProps) {
       </Sidebar>
     )
   }
-
-  const hasEventSelected = selectedEventId && selectedEventId !== "null" && selectedEventId !== "undefined";
 
   return (
     <Sidebar>

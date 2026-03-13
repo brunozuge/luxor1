@@ -32,6 +32,7 @@ export function ListaModule() {
     const [dialogOpen, setDialogOpen] = useState(false)
     const [editingItem, setEditingItem] = useState<ListaItem | null>(null)
     const [itemToDelete, setItemToDelete] = useState<string | null>(null)
+    const [showEditConfirm, setShowEditConfirm] = useState(false)
 
     const [formData, setFormData] = useState({
         nome: "",
@@ -66,12 +67,25 @@ export function ListaModule() {
         }
 
         if (editingItem) {
-            await updateListaItem(editingItem.id, formData)
+            setShowEditConfirm(true)
         } else {
-            await addListaItem(formData)
+            await performSave()
         }
+    }
 
-        setDialogOpen(false)
+    async function performSave() {
+        try {
+            if (editingItem) {
+                await updateListaItem(editingItem.id, formData)
+            } else {
+                await addListaItem(formData)
+            }
+            setDialogOpen(false)
+            setShowEditConfirm(false)
+            toast.success(editingItem ? "Lista atualizada!" : "Lista criada!")
+        } catch (err) {
+            console.error("Erro ao salvar:", err)
+        }
     }
 
     return (
@@ -234,6 +248,14 @@ export function ListaModule() {
                 description="Deseja realmente excluir esta lista de nomes? Esta ação não pode ser desfeita."
                 confirmText="Excluir"
                 variant="destructive"
+            />
+
+            <ConfirmDialog
+                open={showEditConfirm}
+                onOpenChange={setShowEditConfirm}
+                onConfirm={performSave}
+                title="Confirmar Edição"
+                description="Tem certeza que deseja salvar as alterações nas informações desta lista?"
             />
         </div>
     )

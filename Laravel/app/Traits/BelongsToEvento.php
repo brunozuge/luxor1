@@ -5,6 +5,7 @@ namespace App\Traits;
 use App\Models\Evento;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 trait BelongsToEvento
 {
@@ -33,10 +34,15 @@ trait BelongsToEvento
 
                 if ($eventoId && $eventoId !== 'null' && $eventoId !== 'undefined') {
                     $builder->where($builder->getModel()->getTable() . '.evento_id', $eventoId);
+                } else if (Auth::check()) {
+                    // Se não há evento selecionado mas o usuário está logado,
+                    // trazemos tudo que pertence aos eventos desse usuário (Visão Geral)
+                    /** @var \App\Models\User $user */
+                    $user = Auth::user();
+                    $eventoIds = $user->eventos()->pluck('id')->toArray();
+                    $builder->whereIn($builder->getModel()->getTable() . '.evento_id', $eventoIds);
                 } else {
-                    // Force empty result if no event context and not in event-specific index
-                    // But wait: if we are listed ALL events, we don't apply this trait to the Event model itself
-                    // The trait is only applied to children models.
+                    // Força resultado vazio se não há contexto de evento nem usuário
                     $builder->whereRaw('1 = 0');
                 }
             } catch (\Throwable $e) {

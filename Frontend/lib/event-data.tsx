@@ -374,11 +374,9 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   const inFlightRef = useRef<Set<keyof EventData>>(new Set())
 
   const fetchData = useCallback(async (isSilent = false, modules?: (keyof EventData)[]) => {
-    if (!isAuthenticated || !tokenRef.current || !selectedEventIdRef.current) {
-      if (!selectedEventIdRef.current) {
-        setLoading(false)
-        setIsInitialLoad(false)
-      }
+    if (!isAuthenticated || !tokenRef.current) {
+      setLoading(false)
+      setIsInitialLoad(false)
       return
     }
     const currentToken = tokenRef.current
@@ -407,16 +405,21 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     modulesToFetch.forEach(m => inFlightRef.current.add(m.key))
 
     try {
-      const headers = {
+      const headers: any = {
         Authorization: `Bearer ${currentToken}`,
         Accept: "application/json",
-        "X-Evento-Id": String(currentEventId)
+      }
+
+      if (currentEventId) {
+        headers["X-Evento-Id"] = String(currentEventId)
       }
 
       await Promise.all(
         modulesToFetch.map(async (m) => {
           try {
-            const urlWithParam = `${m.url}${m.url.includes("?") ? "&" : "?"}evento_id=${currentEventId}`
+            const urlWithParam = currentEventId
+              ? `${m.url}${m.url.includes("?") ? "&" : "?"}evento_id=${currentEventId}`
+              : m.url
             const res = await fetch(urlWithParam, { headers })
             if (selectedEventIdRef.current !== currentEventId) return
 

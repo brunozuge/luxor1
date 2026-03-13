@@ -25,6 +25,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Crown, Wine, UserPlus, X, Trophy, Pencil, DollarSign } from "lucide-react"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertTriangle } from "lucide-react"
@@ -56,6 +57,7 @@ export function CamaroteModule() {
   const [garrafaForm, setGarrafaForm] = useState("")
   const [personForm, setPersonForm] = useState("")
   const [editingTableId, setEditingTableId] = useState<string | null>(null)
+  const [showEditConfirm, setShowEditConfirm] = useState(false)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
 
   // Calculate spending per table
@@ -78,7 +80,7 @@ export function CamaroteModule() {
   const totalGarrafas = camaroteTables.reduce((sum, t) => sum + t.garrafas.length, 0)
   const totalCamaroteRevenue = camaroteTables.reduce((sum, t) => sum + getTableSpending(t.id), 0)
 
-  function handleAddTable(e: React.FormEvent) {
+  async function handleAddTable(e: React.FormEvent) {
     e.preventDefault()
 
     const newErrors = {
@@ -93,14 +95,28 @@ export function CamaroteModule() {
     }
 
     if (editingTableId) {
-      updateCamaroteTable(editingTableId, tableForm)
+      setShowEditConfirm(true)
     } else {
-      addCamaroteTable(tableForm)
+      await performSave()
     }
-    setTableForm({ nome: "", garcom: "", cor_pulseira: "" })
-    setEditingTableId(null)
-    setErrors({})
-    setTableDialogOpen(false)
+  }
+
+  async function performSave() {
+    try {
+      if (editingTableId) {
+        await updateCamaroteTable(editingTableId, tableForm)
+      } else {
+        await addCamaroteTable(tableForm)
+      }
+      setTableForm({ nome: "", garcom: "", cor_pulseira: "" })
+      setEditingTableId(null)
+      setErrors({})
+      setTableDialogOpen(false)
+      setShowEditConfirm(false)
+      toast.success(editingTableId ? "Mesa atualizada!" : "Mesa criada!")
+    } catch (err) {
+      console.error("Erro ao salvar:", err)
+    }
   }
 
   function openEditTable(table: any) {
@@ -566,6 +582,13 @@ export function CamaroteModule() {
           </form>
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={showEditConfirm}
+        onOpenChange={setShowEditConfirm}
+        onConfirm={performSave}
+        title="Confirmar Edição"
+        description="Tem certeza que deseja salvar as alterações nas informações desta mesa?"
+      />
     </div>
   )
 }

@@ -35,31 +35,6 @@ function DataFetcher({ activeSection }: { activeSection: string }) {
   const { fetchData, fetchedModules, selectedEventId, setFetchedModules } = useEventData()
 
   useEffect(() => {
-    if (!selectedEventId) {
-      const sectionModules: Record<string, (keyof EventData)[]> = {
-        dashboard: ["pessoas", "tickets", "products", "barSales", "colaboradores", "camaroteTables", "listas"],
-        pessoas: ["pessoas"],
-        lista: ["listas"],
-        ingressos: ["tickets", "pessoas", "colaboradores"],
-        portaria: ["tickets", "pessoas"],
-        bar: ["barSales", "products", "colaboradores"],
-        camarote: ["camaroteTables", "pessoas"],
-        colaboradores: ["colaboradores"],
-      }
-
-      const modules = sectionModules[activeSection] || []
-      const missing = modules.filter(m => !fetchedModules.has(m))
-
-      if (missing.length > 0) {
-        setFetchedModules(prev => {
-          const next = new Set(prev)
-          for (const m of missing) next.add(m)
-          return next
-        })
-      }
-      return
-    }
-
     const sectionModules: Record<string, (keyof EventData)[]> = {
       dashboard: ["pessoas", "tickets", "products", "barSales", "colaboradores", "camaroteTables", "listas"],
       pessoas: ["pessoas"],
@@ -78,7 +53,7 @@ function DataFetcher({ activeSection }: { activeSection: string }) {
       const isSilent = missing.length === 0
       fetchData(isSilent, modules as any)
     }
-  }, [activeSection, fetchData, selectedEventId, setFetchedModules])
+  }, [activeSection, fetchData, selectedEventId, setFetchedModules, fetchedModules])
 
   return null
 }
