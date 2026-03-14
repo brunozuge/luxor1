@@ -34,6 +34,7 @@ export function CamaroteModule() {
   const {
     camaroteTables,
     pessoas,
+    eventos,
     barSales,
     addCamaroteTable,
     updateCamaroteTable,
@@ -58,6 +59,7 @@ export function CamaroteModule() {
   const [personForm, setPersonForm] = useState("")
   const [editingTableId, setEditingTableId] = useState<string | null>(null)
   const [showEditConfirm, setShowEditConfirm] = useState(false)
+  const [localEventId, setLocalEventId] = useState<string>("")
   const [errors, setErrors] = useState<Record<string, boolean>>({})
 
   // Calculate spending per table
@@ -83,14 +85,15 @@ export function CamaroteModule() {
   async function handleAddTable(e: React.FormEvent) {
     e.preventDefault()
 
-    const newErrors = {
+    const newErrors: Record<string, boolean> = {
       nome: !tableForm.nome,
-      garcom: !tableForm.garcom
+      garcom: !tableForm.garcom,
+      evento: !selectedEventId && !editingTableId && !localEventId
     }
     setErrors(newErrors)
 
     if (Object.values(newErrors).some(v => v)) {
-      toast.error("Preencha os campos obrigatorios da mesa.")
+      toast.error("Preencha os campos obrigatorios da mesa e valide o evento.")
       return
     }
 
@@ -106,9 +109,10 @@ export function CamaroteModule() {
       if (editingTableId) {
         await updateCamaroteTable(editingTableId, tableForm)
       } else {
-        await addCamaroteTable(tableForm)
+        await addCamaroteTable(tableForm, !selectedEventId ? localEventId : undefined)
       }
       setTableForm({ nome: "", garcom: "", cor_pulseira: "" })
+      setLocalEventId("")
       setEditingTableId(null)
       setErrors({})
       setTableDialogOpen(false)
@@ -167,22 +171,11 @@ export function CamaroteModule() {
           </p>
         </div>
 
-        {!selectedEventId && (
-          <Alert className="border-warning bg-warning/10">
-            <AlertTriangle className="h-4 w-4 text-warning" />
-            <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
-            <AlertDescription className="text-warning/80">
-              Selecione um evento na barra lateral para gerenciar mesas e camarotes.
-            </AlertDescription>
-          </Alert>
-        )}
+        
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <Dialog open={tableDialogOpen} onOpenChange={(v) => {
-            if (v && !selectedEventId) {
-              toast.error("Selecione um evento primeiro")
-              return
-            }
+            
             setTableDialogOpen(v)
             if (!v) {
               setEditingTableId(null)
@@ -191,7 +184,7 @@ export function CamaroteModule() {
             }
           }}>
             <DialogTrigger asChild>
-              <Button disabled={!selectedEventId} title={!selectedEventId ? "Selecione um evento primeiro" : ""} className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white">
+              <Button  className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white">
                 <Plus className="mr-2 h-4 w-4" /> Criar Nova Mesa
               </Button>
             </DialogTrigger>
@@ -243,6 +236,27 @@ export function CamaroteModule() {
                     placeholder="Ex: Dourada, Black, etc."
                   />
                 </div>
+                {!selectedEventId && !editingTableId && (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <Label className="text-primary font-semibold">Atribuir a Qual Evento? *</Label>
+                    <Select
+                      value={localEventId}
+                      onValueChange={(v) => {
+                        setLocalEventId(v)
+                        if (errors.evento) setErrors(prev => ({ ...prev, evento: false }))
+                      }}
+                    >
+                      <SelectTrigger className={errors.evento ? "border-destructive focus-visible:ring-destructive" : ""}>
+                         <SelectValue placeholder="Selecione um evento na lista" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {eventos.map(ev => (
+                           <SelectItem key={ev.id} value={String(ev.id)}>{ev.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="pt-2 sticky bottom-0 bg-card">
                   <Button type="submit" className="w-full">{editingTableId ? "Salvar Alterações" : "Adicionar"}</Button>
                 </div>
@@ -592,3 +606,4 @@ export function CamaroteModule() {
     </div>
   )
 }
+

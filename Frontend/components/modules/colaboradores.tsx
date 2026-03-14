@@ -183,21 +183,10 @@ export function ColaboradoresModule() {
           <p className="text-sm text-muted-foreground">Gestão de equipe e permissões</p>
         </div>
 
-        {!selectedEventId && (
-          <Alert className="border-warning bg-warning/10">
-            <AlertTriangle className="h-4 w-4 text-warning" />
-            <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
-            <AlertDescription className="text-warning/80">
-              Selecione um evento na barra lateral para gerenciar colaboradores.
-            </AlertDescription>
-          </Alert>
-        )}
+        
         <div className="flex flex-col gap-2 sm:flex-row">
           <Dialog open={dialogOpen} onOpenChange={(v) => {
-            if (v && !selectedEventId) {
-              toast.error("Selecione um evento primeiro")
-              return
-            }
+            
             setDialogOpen(v)
             if (!v) {
               setEditingId(null)
@@ -208,8 +197,6 @@ export function ColaboradoresModule() {
             <DialogTrigger asChild>
               <Button
                 onClick={openNewDialog}
-                disabled={!selectedEventId}
-                title={!selectedEventId ? "Selecione um evento primeiro" : ""}
                 className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -492,3 +479,4 @@ export function ColaboradoresModule() {
     </div>
   )
 }
+

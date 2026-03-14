@@ -77,15 +77,7 @@ export function PortariaModule() {
         </p>
       </div>
 
-      {!selectedEventId && (
-        <Alert className="border-warning bg-warning/10">
-          <AlertTriangle className="h-4 w-4 text-warning" />
-          <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
-          <AlertDescription className="text-warning/80">
-            Selecione um evento na barra lateral para gerenciar a portaria.
-          </AlertDescription>
-        </Alert>
-      )}
+      
 
       {isAtCapacity && (
         <Alert className="border-destructive bg-destructive/10">
@@ -241,8 +233,6 @@ export function PortariaModule() {
             onClick={handleEntry}
             className="h-14 text-lg font-semibold bg-red-600 hover:bg-red-700 text-white"
             size="lg"
-            disabled={!selectedEventId}
-            title={!selectedEventId ? "Selecione um evento primeiro" : ""}
           >
             <Plus className="mr-2 h-5 w-5" />
             Marcar Entrada
@@ -292,3 +282,4 @@ export function PortariaModule() {
     </div>
   )
 }
+

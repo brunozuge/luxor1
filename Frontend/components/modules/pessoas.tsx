@@ -97,13 +97,14 @@ function formatCPF(v: string) {
 }
 
 export function PessoasModule() {
-  const { pessoas, addPessoa, updatePessoa, removePessoa, fetchedModules, selectedEventId } = useEventData()
+  const { pessoas, eventos, addPessoa, updatePessoa, removePessoa, fetchedModules, selectedEventId } = useEventData()
   const isLoading = !fetchedModules.has("pessoas")
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [showEditConfirm, setShowEditConfirm] = useState(false)
+  const [localEventId, setLocalEventId] = useState<string>("")
   const [form, setForm] = useState({
     nome: "",
     instagram: "",
@@ -129,11 +130,12 @@ export function PessoasModule() {
       cpfRg: !form.cpfRg,
       dataNascimento: !form.dataNascimento,
       tipoIngresso: !form.tipoIngresso,
+      evento: !selectedEventId && !editingId && !localEventId,
     }
     setErrors(newErrors)
 
     if (Object.values(newErrors).some(v => v)) {
-      toast.error("Por favor, preencha todos os campos destacados em vermelho.")
+      toast.error("Por favor, preencha todos os campos obrigatórios.")
       return
     }
 
@@ -200,12 +202,13 @@ export function PessoasModule() {
         await updatePessoa(editingId, form)
         success = true
       } else {
-        const resId = await addPessoa(form)
+        const resId = await addPessoa(form, !selectedEventId ? localEventId : undefined)
         if (resId) success = true
       }
 
       if (success) {
         setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "" })
+        setLocalEventId("")
         setEditingId(null)
         setErrors({})
         setDialogOpen(false)
@@ -250,22 +253,11 @@ export function PessoasModule() {
           <p className="text-sm text-muted-foreground">Gerencie o cadastro de clientes</p>
         </div>
 
-        {!selectedEventId && (
-          <Alert className="border-warning bg-warning/10">
-            <AlertTriangle className="h-4 w-4 text-warning" />
-            <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
-            <AlertDescription className="text-warning/80">
-              Selecione um evento na barra lateral para gerenciar pessoas.
-            </AlertDescription>
-          </Alert>
-        )}
+        
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <Dialog open={dialogOpen} onOpenChange={(v) => {
-            if (v && !selectedEventId) {
-              toast.error("Selecione um evento primeiro")
-              return
-            }
+            
             setDialogOpen(v)
             if (!v) {
               setEditingId(null)
@@ -280,8 +272,6 @@ export function PessoasModule() {
             <DialogTrigger asChild>
               <Button
                 className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
-                disabled={!selectedEventId}
-                title={!selectedEventId ? "Selecione um evento primeiro" : ""}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Nova Pessoa
@@ -381,6 +371,29 @@ export function PessoasModule() {
                     rows={2}
                   />
                 </div>
+
+                {!selectedEventId && !editingId && (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <Label className="text-primary font-semibold">Atribuir a Qual Evento? *</Label>
+                    <Select
+                      value={localEventId}
+                      onValueChange={(v) => {
+                        setLocalEventId(v)
+                        if (errors.evento) setErrors(prev => ({ ...prev, evento: false }))
+                      }}
+                    >
+                      <SelectTrigger className={errors.evento ? "border-destructive focus-visible:ring-destructive" : ""}>
+                         <SelectValue placeholder="Selecione um evento na lista" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {eventos.map(ev => (
+                           <SelectItem key={ev.id} value={String(ev.id)}>{ev.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div className="pt-2 sticky bottom-0 bg-card">
                   <Button type="submit" className="w-full">{editingId ? "Salvar Alterações" : "Cadastrar"}</Button>
                 </div>
@@ -553,3 +566,4 @@ export function PessoasModule() {
     </div>
   )
 }
+

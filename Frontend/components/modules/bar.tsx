@@ -232,26 +232,15 @@ export function BarModule() {
           <p className="text-sm text-muted-foreground">Vendas, estoque e relatórios</p>
         </div>
 
-        {!selectedEventId && (
-          <Alert className="border-warning bg-warning/10">
-            <AlertTriangle className="h-4 w-4 text-warning" />
-            <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
-            <AlertDescription className="text-warning/80">
-              Selecione um evento na barra lateral para gerenciar o bar e produtos.
-            </AlertDescription>
-          </Alert>
-        )}
+        
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <Dialog open={productDialogOpen} onOpenChange={(v) => {
-            if (v && !selectedEventId) {
-              toast.error("Selecione um evento primeiro")
-              return
-            }
+            
             setProductDialogOpen(v)
           }}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white" disabled={!selectedEventId} title={!selectedEventId ? "Selecione um evento primeiro" : ""}><Plus className="mr-2 h-4 w-4" />Registrar Produto</Button>
+              <Button className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white" ><Plus className="mr-2 h-4 w-4" />Registrar Produto</Button>
             </DialogTrigger>
             <DialogContent className="max-w-[95vw] sm:max-w-xl bg-card text-card-foreground p-0 overflow-hidden flex flex-col max-h-[90vh]">
               <DialogHeader className="p-6 pb-2">
@@ -299,10 +288,7 @@ export function BarModule() {
           </Dialog>
 
           <Dialog open={saleDialogOpen} onOpenChange={(v) => {
-            if (v && !selectedEventId) {
-              toast.error("Selecione um evento primeiro")
-              return
-            }
+            
             setSaleDialogOpen(v)
             if (!v) {
               setErrors({})
@@ -310,7 +296,7 @@ export function BarModule() {
             }
           }}>
             <DialogTrigger asChild>
-              <Button disabled={!selectedEventId} title={!selectedEventId ? "Selecione um evento primeiro" : ""} className="w-full sm:w-auto">
+              <Button  className="w-full sm:w-auto">
                 <ShoppingCart className="mr-2 h-4 w-4" /> Nova Venda
               </Button>
             </DialogTrigger>
@@ -490,3 +476,4 @@ export function BarModule() {
     </div>
   )
 }
+

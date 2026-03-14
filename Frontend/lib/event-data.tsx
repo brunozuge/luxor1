@@ -128,30 +128,30 @@ interface EventContextType extends EventData {
   setLoading: React.Dispatch<React.SetStateAction<boolean>>
   mounted: boolean
 
-  addPessoa: (p: Omit<Person, "id" | "createdAt">) => Promise<string | undefined>
+  addPessoa: (p: Omit<Person, "id" | "createdAt">, targetEventId?: string) => Promise<string | undefined>
   updatePessoa: (id: string, p: Partial<Person>) => Promise<void>
   removePessoa: (id: string) => Promise<void>
-  addTicket: (t: Omit<Ticket, "id" | "entrou" | "horaEntrada" | "pulseira">) => Promise<void>
+  addTicket: (t: Omit<Ticket, "id" | "entrou" | "horaEntrada" | "pulseira">, targetEventId?: string) => Promise<void>
   marcarEntrada: (ticketId: string, pulseira: WristbandColor) => Promise<void>
   addProduct: (p: Omit<Product, "id" | "estoqueAtual">) => Promise<void>
   addProducts: (ps: Omit<Product, "id" | "estoqueAtual">[]) => Promise<void>
   updateProduct: (id: string, p: Partial<Product>) => Promise<void>
   removeProduct: (id: string) => Promise<void>
-  addBarSale: (s: Omit<BarSale, "id" | "hora" | "valorTotal">) => Promise<void>
-  addBarSales: (vendedor: string, items: { productId: string; quantidade: number }[], pessoaId?: string) => Promise<void>
+  addBarSale: (s: Omit<BarSale, "id" | "hora" | "valorTotal">, targetEventId?: string) => Promise<void>
+  addBarSales: (vendedor: string, items: { productId: string; quantidade: number }[], pessoaId?: string, targetEventId?: string) => Promise<void>
   updateBarSale: (id: string, s: Partial<BarSale>) => Promise<void>
   removeBarSale: (id: string) => Promise<void>
 
   addColaborador: (c: Omit<Colaborador, "id">) => Promise<void>
   updateColaborador: (id: string, c: Partial<Colaborador>) => Promise<void>
   removeColaborador: (id: string) => Promise<void>
-  addCamaroteTable: (t: Omit<CamaroteTable, "id" | "pessoaIds" | "garrafas">) => Promise<void>
+  addCamaroteTable: (t: Omit<CamaroteTable, "id" | "pessoaIds" | "garrafas">, targetEventId?: string) => Promise<void>
   updateCamaroteTable: (id: string, t: Partial<CamaroteTable>) => Promise<void>
   addGarrafaToCamarote: (tableId: string, garrafa: string) => Promise<void>
   addPessoaToCamarote: (tableId: string, pessoaId: string) => Promise<void>
   removePessoaFromCamarote: (tableId: string, pessoaId: string) => Promise<void>
   removeGarrafaFromCamarote: (tableId: string, index: number) => Promise<void>
-  addListaItem: (item: Omit<ListaItem, "id">) => Promise<void>
+  addListaItem: (item: Omit<ListaItem, "id">, targetEventId?: string) => Promise<void>
   updateListaItem: (id: string, item: Partial<ListaItem>) => Promise<void>
   removeListaItem: (id: string) => Promise<void>
   setLotacaoMaxima: (n: number) => void
@@ -234,10 +234,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
       setFetchedModules(new Set())
       localStorage.setItem("selected_evento_id", id)
     } else {
-      // Se não tem evento, marcamos tudo como "carregado" para evitar loading infinito
-      setFetchedModules(new Set(["pessoas", "tickets", "products", "barSales", "colaboradores", "camaroteTables", "listas"] as (keyof EventData)[]))
-      setIsInitialLoad(false)
-      setLoading(false)
+      setFetchedModules(new Set())
       localStorage.removeItem("selected_evento_id")
     }
   }, [])
@@ -626,11 +623,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [setSelectedEventId])
 
-  const addPessoa = useCallback(async (p: Omit<Person, "id" | "createdAt">) => {
-    if (!selectedEventIdRef.current) {
-      toast.error("Selecione um evento primeiro")
-      return ""
-    }
+  const addPessoa = useCallback(async (p: Omit<Person, "id" | "createdAt">, targetEventId?: string) => {
+    
     const tempId = `temp-${Date.now()}`
     const optimisticPerson: Person = { ...p, id: tempId, createdAt: new Date().toISOString() }
 
@@ -644,7 +638,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${tokenRef.current}`,
-          "X-Evento-Id": String(selectedEventIdRef.current)
+          "X-Evento-Id": String(targetEventId || selectedEventIdRef.current)
         },
         body: JSON.stringify({
           nome: p.nome,
@@ -672,7 +666,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const updatePessoa = useCallback(async (id: string, p: Partial<Person>) => {
-    if (!selectedEventIdRef.current) return
+
     const previous = dataRef.current.pessoas
     setData(prev => ({
       ...prev,
@@ -708,7 +702,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const removePessoa = useCallback(async (id: string) => {
-    if (!selectedEventIdRef.current) return
+
     const previous = dataRef.current.pessoas
     setData(prev => ({ ...prev, pessoas: prev.pessoas.filter(x => x.id !== id) }))
     toast.success("Pessoa removida")
@@ -730,11 +724,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const addTicket = useCallback(async (t: Omit<Ticket, "id" | "entrou" | "horaEntrada" | "pulseira">) => {
-    if (!selectedEventIdRef.current) {
-      toast.error("Selecione um evento primeiro")
-      return
-    }
+  const addTicket = useCallback(async (t: Omit<Ticket, "id" | "entrou" | "horaEntrada" | "pulseira">, targetEventId?: string) => {
+    
     const tempId = `temp-${Date.now()}`
     const optimisticTicket: Ticket = {
       ...t,
@@ -754,7 +745,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${tokenRef.current}`,
-          "X-Evento-Id": String(selectedEventIdRef.current)
+          "X-Evento-Id": String(targetEventId || selectedEventIdRef.current)
         },
         body: JSON.stringify({
           numero: t.numero,
@@ -780,7 +771,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const marcarEntrada = useCallback(async (ticketId: string, pulseira: WristbandColor) => {
-    if (!selectedEventIdRef.current) return
+
     const previous = dataRef.current.tickets
     const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
 
@@ -811,10 +802,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const addProduct = useCallback(async (p: Omit<Product, "id" | "estoqueAtual">) => {
-    if (!selectedEventIdRef.current) {
-      toast.error("Selecione um evento primeiro")
-      return
-    }
+    
     const tempId = `temp-${Date.now()}`
     const optimisticProduct: Product = { ...p, id: tempId, estoqueAtual: p.estoqueInicial }
 
@@ -851,7 +839,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const addProducts = useCallback(async (ps: Omit<Product, "id" | "estoqueAtual">[]) => {
-    if (!selectedEventIdRef.current) return
+
     const tempProducts: Product[] = ps.map((p, idx) => ({
       ...p,
       id: `temp-bulk-${Date.now()}-${idx}`,
@@ -892,7 +880,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [fetchData])
 
   const updateProduct = useCallback(async (id: string, p: Partial<Product>) => {
-    if (!selectedEventIdRef.current) return
+
     const previous = dataRef.current.products
     setData(prev => ({
       ...prev,
@@ -927,7 +915,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const removeProduct = useCallback(async (id: string) => {
-    if (!selectedEventIdRef.current) return
+
     const previous = dataRef.current.products
     setData(prev => ({ ...prev, products: prev.products.filter(x => x.id !== id) }))
     toast.success("Produto removido")
@@ -949,11 +937,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const addBarSale = useCallback(async (s: Omit<BarSale, "id" | "hora" | "valorTotal">) => {
-    if (!selectedEventIdRef.current) {
-      toast.error("Selecione um evento primeiro")
-      return
-    }
+  const addBarSale = useCallback(async (s: Omit<BarSale, "id" | "hora" | "valorTotal">, targetEventId?: string) => {
+    
     const prod = dataRef.current.products.find(p => p.id === s.productId)
     const valorTotal = (prod?.precoVenda || 0) * s.quantidade
     const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
@@ -975,7 +960,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${tokenRef.current}`,
-          "X-Evento-Id": String(selectedEventIdRef.current)
+          "X-Evento-Id": String(targetEventId || selectedEventIdRef.current)
         },
         body: JSON.stringify({
           produto_id: s.productId,
@@ -1006,10 +991,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const addBarSales = useCallback(async (vendedor: string, items: { productId: string; quantidade: number }[], pessoaId?: string) => {
-    if (!selectedEventIdRef.current) {
-      toast.error("Selecione um evento primeiro")
-      return
-    }
+    
     const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
     const currentProducts = dataRef.current.products
     const tempSales: BarSale[] = items.map((item, idx) => {
@@ -1093,7 +1075,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [fetchData])
 
   const updateBarSale = useCallback(async (id: string, s: Partial<BarSale>) => {
-    if (!selectedEventIdRef.current) return
+
     const previous = dataRef.current.barSales
     setData(prev => ({
       ...prev,
@@ -1130,7 +1112,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [fetchData])
 
   const removeBarSale = useCallback(async (id: string) => {
-    if (!selectedEventIdRef.current) return
+
     const saleToRemove = dataRef.current.barSales.find(s => s.id === id)
     setData(prev => ({
       ...prev,
@@ -1161,10 +1143,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const addColaborador = useCallback(async (c: Omit<Colaborador, "id">) => {
-    if (!selectedEventIdRef.current) {
-      toast.error("Selecione um evento primeiro")
-      return
-    }
+    
     const tempId = `temp-${Date.now()}`
     const optimisticColaborador: Colaborador = { ...c, id: tempId }
 
@@ -1197,7 +1176,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const updateColaborador = useCallback(async (id: string, c: Partial<Colaborador>) => {
-    if (!selectedEventIdRef.current) return
+
     const previous = dataRef.current.colaboradores
     setData(prev => ({
       ...prev,
@@ -1225,7 +1204,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const removeColaborador = useCallback(async (id: string) => {
-    if (!selectedEventIdRef.current) return
+
     const previous = dataRef.current.colaboradores
     setData(prev => ({ ...prev, colaboradores: prev.colaboradores.filter(x => x.id !== id) }))
     toast.success("Colaborador removido")
@@ -1240,6 +1219,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         }
       })
       if (!res.ok) throw new Error("Erro banco")
+      refreshEventos()
     } catch (err) {
       console.error(err)
       setData(prev => ({ ...prev, colaboradores: previous }))
@@ -1247,11 +1227,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const addCamaroteTable = useCallback(async (t: Omit<CamaroteTable, "id" | "pessoaIds" | "garrafas">) => {
-    if (!selectedEventIdRef.current) {
-      toast.error("Selecione um evento primeiro")
-      return
-    }
+  const addCamaroteTable = useCallback(async (t: Omit<CamaroteTable, "id" | "pessoaIds" | "garrafas">, targetEventId?: string) => {
+    
     const tempId = `temp-${Date.now()}`
     const optimisticTable: CamaroteTable = { ...t, id: tempId, pessoaIds: [], garrafas: [] }
 
@@ -1265,7 +1242,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${tokenRef.current}`,
-          "X-Evento-Id": String(selectedEventIdRef.current)
+          "X-Evento-Id": String(targetEventId || selectedEventIdRef.current)
         },
         body: JSON.stringify(t)
       })
@@ -1283,7 +1260,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const updateCamaroteTable = useCallback(async (id: string, t: Partial<CamaroteTable>) => {
-    if (!selectedEventIdRef.current) return
+
     const previous = dataRef.current.camaroteTables
     setData(prev => ({
       ...prev,
@@ -1311,7 +1288,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const addGarrafaToCamarote = useCallback(async (tableId: string, garrafa: string) => {
-    if (!selectedEventIdRef.current) return
+
     setData(prev => ({
       ...prev,
       camaroteTables: prev.camaroteTables.map(t => t.id === tableId ? { ...t, garrafas: [...t.garrafas, garrafa] } : t)
@@ -1337,7 +1314,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [fetchData])
 
   const removeGarrafaFromCamarote = useCallback(async (tableId: string, index: number) => {
-    if (!selectedEventIdRef.current) return
+
     setData(prev => ({
       ...prev,
       camaroteTables: prev.camaroteTables.map(t => t.id === tableId ? { ...t, garrafas: t.garrafas.filter((_, i) => i !== index) } : t)
@@ -1361,7 +1338,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [fetchData])
 
   const addPessoaToCamarote = useCallback(async (tableId: string, pessoaId: string) => {
-    if (!selectedEventIdRef.current) return
+
     setData(prev => ({
       ...prev,
       camaroteTables: prev.camaroteTables.map(t => t.id === tableId ? { ...t, pessoaIds: [...t.pessoaIds, pessoaId] } : t)
@@ -1387,7 +1364,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [fetchData])
 
   const removePessoaFromCamarote = useCallback(async (tableId: string, pessoaId: string) => {
-    if (!selectedEventIdRef.current) return
+
     setData(prev => ({
       ...prev,
       camaroteTables: prev.camaroteTables.map(t => t.id === tableId ? { ...t, pessoaIds: t.pessoaIds.filter(pid => pid !== pessoaId) } : t)
@@ -1410,11 +1387,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchData])
 
-  const addListaItem = useCallback(async (item: Omit<ListaItem, "id">) => {
-    if (!selectedEventIdRef.current) {
-      toast.error("Selecione um evento primeiro")
-      return
-    }
+  const addListaItem = useCallback(async (item: Omit<ListaItem, "id">, targetEventId?: string) => {
+    
     const tempId = `temp-${Date.now()}`
     const optimisticItem: ListaItem = { ...item, id: tempId }
 
@@ -1428,7 +1402,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "Authorization": `Bearer ${tokenRef.current}`,
-          "X-Evento-Id": String(selectedEventIdRef.current)
+          "X-Evento-Id": String(targetEventId || selectedEventIdRef.current)
         },
         body: JSON.stringify(item)
       })
@@ -1446,7 +1420,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const updateListaItem = useCallback(async (id: string, item: Partial<ListaItem>) => {
-    if (!selectedEventIdRef.current) return
+
     const previous = dataRef.current.listas
     setData(prev => ({
       ...prev,
@@ -1474,7 +1448,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const removeListaItem = useCallback(async (id: string) => {
-    if (!selectedEventIdRef.current) return
+
     const previous = dataRef.current.listas
     setData(prev => ({ ...prev, listas: prev.listas.filter(l => l.id !== id) }))
     toast.success("Lista removida!")
@@ -1555,3 +1529,8 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     </EventContext.Provider>
   )
 }
+
+
+
+
+

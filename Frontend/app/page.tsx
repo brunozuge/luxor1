@@ -50,10 +50,11 @@ function DataFetcher({ activeSection }: { activeSection: string }) {
 
     if (modules.length > 0) {
       const missing = modules.filter(m => !fetchedModules.has(m))
-      const isSilent = missing.length === 0
-      fetchData(isSilent, modules as any)
+      if (missing.length > 0) {
+        fetchData(false, missing as any)
+      }
     }
-  }, [activeSection, fetchData, selectedEventId, setFetchedModules, fetchedModules])
+  }, [activeSection, fetchData, selectedEventId, fetchedModules])
 
   return null
 }

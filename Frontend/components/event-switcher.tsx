@@ -71,7 +71,10 @@ export function EventSwitcher({ className }: { className?: string }) {
                     )}
                     <DropdownMenuItem
                         className="flex items-center gap-3 p-3 cursor-pointer rounded-lg hover:bg-red-50 focus:bg-red-50"
-                        onClick={() => setOverlay("festas")}
+                        onClick={() => {
+                            setSelectedEventId(null)
+                            setOverlay("festas")
+                        }}
                     >
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600/10 text-red-600">
                             <Calendar className="size-4" />
@@ -84,7 +87,10 @@ export function EventSwitcher({ className }: { className?: string }) {
 
                     <DropdownMenuItem
                         className="flex items-center gap-3 p-3 cursor-pointer rounded-lg hover:bg-red-50 focus:bg-red-50"
-                        onClick={() => setOverlay("eventpro")}
+                        onClick={() => {
+                            setSelectedEventId(null)
+                            setOverlay("eventpro")
+                        }}
                     >
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600/10 text-red-600">
                             <Crown className="size-4" />

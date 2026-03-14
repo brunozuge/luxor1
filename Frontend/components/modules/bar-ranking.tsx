@@ -405,3 +405,4 @@ function ChangeIndicator({ change, small = false }: { change: string; small?: bo
   }
   return null
 }
+

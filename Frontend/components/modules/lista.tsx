@@ -26,13 +26,22 @@ import { Plus, Trash2, ListTodo, Search, X, Pencil, FileText, AlertTriangle } fr
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+
 export function ListaModule() {
-    const { listas, addListaItem, updateListaItem, removeListaItem, selectedEventId } = useEventData()
+    const { listas, eventos, addListaItem, updateListaItem, removeListaItem, selectedEventId } = useEventData()
     const [searchTerm, setSearchTerm] = useState("")
     const [dialogOpen, setDialogOpen] = useState(false)
     const [editingItem, setEditingItem] = useState<ListaItem | null>(null)
     const [itemToDelete, setItemToDelete] = useState<string | null>(null)
     const [showEditConfirm, setShowEditConfirm] = useState(false)
+    const [localEventId, setLocalEventId] = useState<string>("")
 
     const [formData, setFormData] = useState({
         nome: "",
@@ -45,10 +54,7 @@ export function ListaModule() {
     )
 
     function handleOpenCreate() {
-        if (!selectedEventId) {
-            toast.error("Selecione um evento primeiro")
-            return
-        }
+        
         setEditingItem(null)
         setFormData({ nome: "", descricao: "" })
         setDialogOpen(true)
@@ -66,6 +72,11 @@ export function ListaModule() {
             return
         }
 
+        if (!selectedEventId && !editingItem && !localEventId) {
+            toast.error("Por favor, selecione um evento para vincular.")
+            return
+        }
+
         if (editingItem) {
             setShowEditConfirm(true)
         } else {
@@ -78,7 +89,7 @@ export function ListaModule() {
             if (editingItem) {
                 await updateListaItem(editingItem.id, formData)
             } else {
-                await addListaItem(formData)
+                await addListaItem(formData, !selectedEventId ? localEventId : undefined)
             }
             setDialogOpen(false)
             setShowEditConfirm(false)
@@ -96,21 +107,13 @@ export function ListaModule() {
                     <p className="text-sm text-muted-foreground">Gerencie grupos e listas nominais</p>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button onClick={handleOpenCreate} className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white" disabled={!selectedEventId} title={!selectedEventId ? "Selecione um evento primeiro" : ""}>
+                    <Button onClick={handleOpenCreate} className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white" >
                         <Plus className="mr-2 h-4 w-4" /> Criar Nova Lista
                     </Button>
                 </div>
             </div>
 
-            {!selectedEventId && (
-                <Alert className="border-warning bg-warning/10">
-                    <AlertTriangle className="h-4 w-4 text-warning" />
-                    <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
-                    <AlertDescription className="text-warning/80">
-                        Selecione um evento na barra lateral para gerenciar as listas de nomes.
-                    </AlertDescription>
-                </Alert>
-            )}
+            
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <Card>
@@ -225,6 +228,26 @@ export function ListaModule() {
                                 onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
                             />
                         </div>
+
+                        {!selectedEventId && !editingItem && (
+                            <div className="flex flex-col gap-2 mt-2">
+                                <Label className="text-primary font-semibold">Atribuir a Qual Evento? *</Label>
+                                <Select
+                                    value={localEventId}
+                                    onValueChange={setLocalEventId}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione um evento na lista" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {eventos.map(ev => (
+                                            <SelectItem key={ev.id} value={String(ev.id)}>{ev.nome}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
                         <div className="pt-2 sticky bottom-0 bg-card">
                             <Button
                                 onClick={handleSubmit}
@@ -260,3 +283,4 @@ export function ListaModule() {
         </div>
     )
 }
+

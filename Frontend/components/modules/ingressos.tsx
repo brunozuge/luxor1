@@ -59,10 +59,11 @@ const paymentLabels: Record<PaymentMethod, string> = {
 }
 
 export function IngressosModule() {
-  const { tickets, pessoas, addTicket, colaboradores, fetchedModules, selectedEventId } = useEventData()
+  const { tickets, pessoas, eventos, addTicket, colaboradores, fetchedModules, selectedEventId } = useEventData()
   const isLoading = !fetchedModules.has("tickets")
   const [search, setSearch] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [localEventId, setLocalEventId] = useState<string>("")
   const [errors, setErrors] = useState<Record<string, boolean>>({})
   const [form, setForm] = useState({
     numero: "",
@@ -81,21 +82,22 @@ export function IngressosModule() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    const newErrors = {
+    const newErrors: Record<string, boolean> = {
       numero: !form.numero,
       lote: !form.lote,
       valorPago: !form.valorPago,
       vendedor: !form.vendedor,
       formaPagamento: !form.formaPagamento,
-      pessoaId: !form.pessoaId
+      pessoaId: !form.pessoaId,
+      evento: !selectedEventId && !localEventId
     }
     setErrors(newErrors)
 
     if (Object.values(newErrors).some(v => v)) {
-      toast.error("Preencha todos os campos destacados em vermelho.")
+      toast.error("Preencha todos os campos e valide o evento.")
       return
     }
-    if (Number(form.valorPago) < 0) {
+    if (Number(parseCurrency(form.valorPago)) < 0) {
       toast.error("O valor nao pode ser negativo.")
       return
     }
@@ -106,8 +108,9 @@ export function IngressosModule() {
       vendedor: form.vendedor,
       formaPagamento: form.formaPagamento,
       pessoaId: form.pessoaId,
-    })
+    }, !selectedEventId ? localEventId : undefined)
     setForm({ numero: "", lote: "1", valorPago: "", vendedor: "", formaPagamento: "dinheiro", pessoaId: "" })
+    setLocalEventId("")
     setDialogOpen(false)
   }
 
@@ -119,22 +122,11 @@ export function IngressosModule() {
           <p className="text-sm text-muted-foreground">Emita novos ingressos para seu evento</p>
         </div>
 
-        {!selectedEventId && (
-          <Alert className="border-warning bg-warning/10">
-            <AlertTriangle className="h-4 w-4 text-warning" />
-            <AlertTitle className="text-warning">Nenhum Evento Selecionado</AlertTitle>
-            <AlertDescription className="text-warning/80">
-              Selecione um evento na barra lateral para vender ingressos.
-            </AlertDescription>
-          </Alert>
-        )}
+        
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <Dialog open={dialogOpen} onOpenChange={(v) => {
-            if (v && !selectedEventId) {
-              toast.error("Selecione um evento primeiro")
-              return
-            }
+            
             setDialogOpen(v)
             if (!v) {
               setErrors({})
@@ -142,7 +134,7 @@ export function IngressosModule() {
             }
           }}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white" disabled={!selectedEventId} title={!selectedEventId ? "Selecione um evento primeiro" : ""}>
+              <Button className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white" >
                 <Plus className="mr-2 h-4 w-4" /> Cadastrar Ingresso
               </Button>
             </DialogTrigger>
@@ -257,6 +249,28 @@ export function IngressosModule() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {!selectedEventId && (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <Label className="text-primary font-semibold">Atribuir a Qual Evento? *</Label>
+                    <Select
+                      value={localEventId}
+                      onValueChange={(v) => {
+                        setLocalEventId(v)
+                        if (errors.evento) setErrors(prev => ({ ...prev, evento: false }))
+                      }}
+                    >
+                      <SelectTrigger className={errors.evento ? "border-destructive focus-visible:ring-destructive" : ""}>
+                         <SelectValue placeholder="Selecione um evento na lista" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {eventos.map(ev => (
+                           <SelectItem key={ev.id} value={String(ev.id)}>{ev.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="pt-2 sticky bottom-0 bg-card">
                   <Button type="submit" className="w-full">Registrar</Button>
@@ -390,3 +404,4 @@ export function IngressosModule() {
     </div>
   )
 }
+
