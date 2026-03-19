@@ -29,6 +29,13 @@ class VendaBarController extends Controller
             'quantidade' => 'required|integer|min:1',
         ]);
 
+        if (!empty($data['pessoa_id'])) {
+            $pessoa = \App\Models\Pessoa::withoutGlobalScope('evento')->find($data['pessoa_id']);
+            if ($pessoa && $pessoa->bloqueado) {
+                return response()->json(['message' => 'Esta pessoa está bloqueada no sistema.'], 403);
+            }
+        }
+
         try {
             return response()->json($this->service->create($data), 201);
         } catch (\Exception $e) {
@@ -66,6 +73,13 @@ class VendaBarController extends Controller
             'items.*.produto_id' => 'required|exists:produtos,id',
             'items.*.quantidade' => 'required|integer|min:1',
         ]);
+
+        if (!empty($data['pessoa_id'])) {
+            $pessoa = \App\Models\Pessoa::withoutGlobalScope('evento')->find($data['pessoa_id']);
+            if ($pessoa && $pessoa->bloqueado) {
+                return response()->json(['message' => 'Esta pessoa está bloqueada no sistema.'], 403);
+            }
+        }
 
         try {
             return response()->json($this->service->bulkCreate(

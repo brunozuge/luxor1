@@ -49,6 +49,11 @@ class MesaCamaroteController extends Controller
             'pessoa_id' => 'required|exists:pessoas,id',
         ]);
 
+        $pessoa = \App\Models\Pessoa::withoutGlobalScope('evento')->find($data['pessoa_id']);
+        if ($pessoa && $pessoa->bloqueado) {
+            return response()->json(['message' => 'Esta pessoa está bloqueada no sistema.'], 403);
+        }
+
         return response()->json($this->service->addPessoa($id, $data['pessoa_id']));
     }
 

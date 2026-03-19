@@ -19,6 +19,7 @@ export interface Person {
   dataNascimento: string
   tipoIngresso: TicketType
   observacao: string
+  bloqueado: boolean
   createdAt: string
 }
 
@@ -428,7 +429,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
               transformed = json.map((p: any) => ({
                 id: String(p.id), nome: p.nome, instagram: p.instagram || "",
                 cpfRg: p.cpf_rg || "", dataNascimento: p.data_nascimento || "",
-                tipoIngresso: p.tipo_ingresso, observacao: p.observacao || "", createdAt: p.created_at
+                tipoIngresso: p.tipo_ingresso, observacao: p.observacao || "", bloqueado: Boolean(p.bloqueado), createdAt: p.created_at
               }))
             } else if (key === "tickets") {
               transformed = json.map((i: any) => ({
@@ -626,7 +627,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
   const addPessoa = useCallback(async (p: Omit<Person, "id" | "createdAt">, targetEventId?: string) => {
     
     const tempId = `temp-${Date.now()}`
-    const optimisticPerson: Person = { ...p, id: tempId, createdAt: new Date().toISOString() }
+    const optimisticPerson: Person = { ...p, id: tempId, bloqueado: false, createdAt: new Date().toISOString() }
 
     setData(prev => ({ ...prev, pessoas: [optimisticPerson, ...prev.pessoas] }))
     toast.success("Pessoa cadastrada!")
@@ -646,10 +647,18 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           cpf_rg: p.cpfRg.replace(/\D/g, ""),
           data_nascimento: p.dataNascimento,
           tipo_ingresso: p.tipoIngresso,
-          observacao: p.observacao
+          observacao: p.observacao,
+          bloqueado: p.bloqueado || false
         })
       })
-      if (!res.ok) throw new Error("Erro banco")
+      if (!res.ok) {
+        let msg = "Erro banco"
+        try {
+          const errData = await res.json()
+          if (errData.message) msg = errData.message
+        } catch(e) {}
+        throw new Error(msg)
+      }
       const newItem = await res.json()
 
       setData(prev => ({
@@ -657,10 +666,10 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         pessoas: prev.pessoas.map(per => per.id === tempId ? { ...per, id: String(newItem.id) } : per)
       }))
       return String(newItem.id)
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
       setData(prev => ({ ...prev, pessoas: prev.pessoas.filter(per => per.id !== tempId) }))
-      toast.error("Erro ao realizar tarefa no banco")
+      toast.error(err.message || "Erro ao realizar tarefa no banco")
       return ""
     }
   }, [])
@@ -681,6 +690,7 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
     if (p.dataNascimento !== undefined) body.data_nascimento = p.dataNascimento
     if (p.tipoIngresso !== undefined) body.tipo_ingresso = p.tipoIngresso
     if (p.observacao !== undefined) body.observacao = p.observacao
+    if (p.bloqueado !== undefined) body.bloqueado = p.bloqueado
 
     try {
       const res = await fetch(`${API_URL}/pessoas/${id}`, {
@@ -693,11 +703,19 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
         },
         body: JSON.stringify(body)
       })
-      if (!res.ok) throw new Error("Erro banco")
-    } catch (err) {
+      if (!res.ok) {
+        let msg = "Erro banco"
+        try {
+          const errData = await res.json()
+          if (errData.message) msg = errData.message
+        } catch(e) {}
+        throw new Error(msg)
+      }
+    } catch (err: any) {
       console.error(err)
       setData(prev => ({ ...prev, pessoas: previous }))
-      toast.error("Erro ao realizar tarefa no banco")
+      toast.error(err.message || "Erro ao realizar tarefa no banco")
+      throw err // Throw it so the caller knows it failed
     }
   }, [])
 
@@ -716,11 +734,18 @@ export function EventDataProvider({ children }: { children: React.ReactNode }) {
           "X-Evento-Id": String(selectedEventIdRef.current)
         }
       })
-      if (!res.ok) throw new Error("Erro banco")
-    } catch (err) {
+      if (!res.ok) {
+        let msg = "Erro banco"
+        try {
+          const errData = await res.json()
+          if (errData.message) msg = errData.message
+        } catch(e) {}
+        throw new Error(msg)
+      }
+    } catch (err: any) {
       console.error(err)
       setData(prev => ({ ...prev, pessoas: previous }))
-      toast.error("Erro ao realizar tarefa no banco")
+      toast.error(err.message || "Erro ao realizar tarefa no banco")
     }
   }, [])
 

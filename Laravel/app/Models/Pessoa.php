@@ -18,6 +18,12 @@ class Pessoa extends Model
         'tipo_ingresso',
         'observacao',
         'evento_id',
+        'bloqueado',
+    ];
+
+    protected $casts = [
+        'data_nascimento' => 'date',
+        'bloqueado' => 'boolean',
     ];
 
     public function vendasBar()

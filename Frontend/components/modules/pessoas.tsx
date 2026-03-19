@@ -24,6 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table,
   TableBody,
@@ -34,7 +35,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Search, Trash2, Pencil, Users, Wine, TrendingUp, DollarSign, ShoppingCart, Trophy, X } from "lucide-react"
+import { Plus, Search, Trash2, Pencil, Users, Wine, TrendingUp, DollarSign, ShoppingCart, Trophy, X, Ban, Unlock } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -112,10 +113,13 @@ export function PessoasModule() {
     dataNascimento: "",
     tipoIngresso: "pista" as TicketType,
     observacao: "",
+    bloqueado: false,
   })
   const [errors, setErrors] = useState<Record<string, boolean>>({})
+  const [viewMode, setViewMode] = useState<"ativos" | "bloqueados">("ativos")
 
-  const filtered = pessoas.filter(
+  const basePessoas = pessoas.filter((p) => viewMode === "bloqueados" ? p.bloqueado : !p.bloqueado)
+  const filtered = basePessoas.filter(
     (p) =>
       p.nome.toLowerCase().includes(search.toLowerCase()) ||
       p.cpfRg.includes(search) ||
@@ -207,7 +211,7 @@ export function PessoasModule() {
       }
 
       if (success) {
-        setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "" })
+        setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "", bloqueado: false })
         setLocalEventId("")
         setEditingId(null)
         setErrors({})
@@ -228,13 +232,14 @@ export function PessoasModule() {
       dataNascimento: pessoa.dataNascimento || "",
       tipoIngresso: pessoa.tipoIngresso,
       observacao: pessoa.observacao || "",
+      bloqueado: pessoa.bloqueado || false,
     })
     setDialogOpen(true)
   }
 
   function openNewDialog() {
     setEditingId(null)
-    setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "" })
+    setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "", bloqueado: false })
     setDialogOpen(true)
   }
 
@@ -243,6 +248,10 @@ export function PessoasModule() {
       removePessoa(confirmDeleteId)
       setConfirmDeleteId(null)
     }
+  }
+
+  function handleToggleBlock(id: string, currentlyBlocked: boolean) {
+    updatePessoa(id, { bloqueado: !currentlyBlocked })
   }
 
   return (
@@ -262,10 +271,10 @@ export function PessoasModule() {
             if (!v) {
               setEditingId(null)
               setErrors({})
-              setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "" })
+              setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "", bloqueado: false })
             } else { // If opening the dialog and not editing, reset form for new entry
               if (!editingId) {
-                setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "" })
+                setForm({ nome: "", instagram: "", cpfRg: "", dataNascimento: "", tipoIngresso: "pista", observacao: "", bloqueado: false })
               }
             }
           }}>
@@ -448,14 +457,22 @@ export function PessoasModule() {
         ))}
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome, CPF ou Instagram..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
-        />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <Tabs value={viewMode} onValueChange={(v: string) => setViewMode(v as "ativos" | "bloqueados")} className="w-full sm:w-auto">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="ativos">Ativos</TabsTrigger>
+            <TabsTrigger value="bloqueados">Bloqueados</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="relative w-full sm:w-64 shrink-0">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, CPF ou Instagram..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       <Card className="bg-card border-border overflow-hidden">
@@ -521,6 +538,15 @@ export function PessoasModule() {
                             className="h-8 w-8 text-muted-foreground hover:text-primary"
                           >
                             <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleToggleBlock(p.id, p.bloqueado)}
+                            title={p.bloqueado ? "Desbloquear Pessoa" : "Bloquear Pessoa"}
+                            className="h-8 w-8 text-muted-foreground hover:text-warning"
+                          >
+                            {p.bloqueado ? <Unlock className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
                           </Button>
                           <Button
                             variant="ghost"

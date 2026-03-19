@@ -28,7 +28,15 @@ class IngressoController extends Controller
             'valor_pago' => 'nullable|numeric',
             'vendedor' => 'nullable|string',
             'forma_pagamento' => 'required|in:dinheiro,pix,cartao_credito,cartao_debito',
+            'pessoa_id' => 'nullable|exists:pessoas,id',
         ]);
+
+        if (!empty($data['pessoa_id'])) {
+            $pessoa = \App\Models\Pessoa::withoutGlobalScope('evento')->find($data['pessoa_id']);
+            if ($pessoa && $pessoa->bloqueado) {
+                return response()->json(['message' => 'Esta pessoa está bloqueada no sistema.'], 403);
+            }
+        }
 
         return response()->json($this->service->create($data), 201);
     }
