@@ -10,7 +10,7 @@ import { LogIn, Lock, Mail, Loader2, Eye, EyeOff } from "lucide-react"
 import { motion } from "framer-motion"
 
 export function Login() {
-    const { login, loading } = useAuth()
+    const { login, loginLoading } = useAuth()
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [showPassword, setShowPassword] = useState(false)
@@ -94,9 +94,9 @@ export function Login() {
                             <Button
                                 type="submit"
                                 className="w-full h-11 font-semibold text-base transition-all active:scale-[0.98]"
-                                disabled={loading}
+                                disabled={loginLoading}
                             >
-                                {loading ? (
+                                {loginLoading ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         Entrando...

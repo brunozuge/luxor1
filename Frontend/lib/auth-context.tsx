@@ -15,6 +15,7 @@ interface AuthContextType {
     login: (email: string, password: string) => Promise<boolean>
     logout: () => void
     loading: boolean
+    loginLoading: boolean
     isAuthenticated: boolean
 }
 
@@ -39,8 +40,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false)
     }, [])
 
+    const [loginLoading, setLoginLoading] = useState(false)
+
     const login = useCallback(async (email: string, password: string) => {
-        setLoading(true)
+        setLoginLoading(true)
         try {
             const response = await fetch(`${API_BASE_URL}/login`, {
                 method: "POST",
@@ -69,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             toast.error("Erro ao conectar com o servidor")
             return false
         } finally {
-            setLoading(false)
+            setLoginLoading(false)
         }
     }, [])
 
@@ -106,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 login,
                 logout,
                 loading,
+                loginLoading,
                 isAuthenticated: !!token,
             }}
         >
